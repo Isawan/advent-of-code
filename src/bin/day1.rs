@@ -10,36 +10,6 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-fn count_increments(reader: impl BufRead) -> Result<i32, std::io::Error> {
-    let mut increments = 0;
-    let mut lines = reader.lines();
-    let mut last_number: i32;
-    if let Some(line) = &mut lines.next() {
-        last_number = line
-            .as_ref()
-            .expect("Could not read first line due to IO error")
-            .parse::<i32>()
-            .expect("Could not parse first number");
-    } else {
-        // Zero increments if empty stream
-        return Ok(0)
-    }
-    for line in lines {
-        let next_line = line.as_ref().expect("Could not read next line due to IO error");
-        if next_line == "" {
-            break;
-        }
-        let next_number = next_line
-            .parse::<i32>()
-            .expect("Could not parse number");
-        if next_number > last_number {
-            increments += 1;
-        }
-        last_number = next_number
-    }
-    Ok(increments)
-}
-
 fn count_increments_with_sliding_window(reader: impl BufRead) -> Result<i32, std::io::Error> {
     let window_size = 3;
     let mut increments = 0;
