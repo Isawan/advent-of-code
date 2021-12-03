@@ -37,6 +37,7 @@ fn parse_line(line: &str) -> Option<(Direction, i32)> {
 fn final_position(movement_stream: impl BufRead) -> (i32, i32) {
     let mut horizontal_position = 0;
     let mut depth = 0;
+    let mut aim = 0;
     let lines = movement_stream.lines();
     for line in lines {
         println!("x={} y={}", horizontal_position, depth);
@@ -44,7 +45,7 @@ fn final_position(movement_stream: impl BufRead) -> (i32, i32) {
             .as_ref()
             .expect("Could not read next line due to IO error");
         if let Some((direction, count)) = parse_line(next_line) {
-            depth = depth
+            aim = aim
                 + match direction {
                     Direction::Up => -count,
                     Direction::Down => count,
@@ -55,7 +56,12 @@ fn final_position(movement_stream: impl BufRead) -> (i32, i32) {
                     Direction::Up => 0,
                     Direction::Down => 0,
                     Direction::Forward => count,
-                }
+                };
+            depth = depth + match direction {
+                    Direction::Up => 0,
+                    Direction::Down => 0,
+                    Direction::Forward => aim * count,
+            };
         } else {
             break;
         }
