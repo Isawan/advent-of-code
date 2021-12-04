@@ -16,7 +16,6 @@ enum Binary {
 #[derive(Debug, Clone)]
 enum Error {
     ParsedNoneBinaryCharacter,
-    EmptyLine,
     IOError,
 }
 
@@ -136,19 +135,10 @@ fn bit_criteria(
     bit_criteria(firstpass, level + 1, search)
 }
 
-//fn get_gas(stream: impl BufRead) -> Result<(usize, usize), Error> {
-//    let sanitised_stream: Vec<Vec<Binary>> = stream
-//        .lines()
-//        .collect::<Result<Vec<String>, std::io::Error>>()?
-//        .iter()
-//        .map(|x| parse_line(x.as_str()))
-//        .collect::<Result<Vec<Vec<Binary>>, Error>>()?;
-//}
-
 fn main() {
     let args = Cli::from_args();
-    let mut file = File::open(args.path.as_path()).unwrap();
-    let mut buf_reader = BufReader::new(file);
+    let file = File::open(args.path.as_path()).unwrap();
+    let buf_reader = BufReader::new(file);
     let (gamma, epsilon, oxygen, co2) = get_values(buf_reader).unwrap();
 
     println!("gamma={} epsilon={} oxygen={} co2={}", gamma, epsilon, oxygen, co2);
