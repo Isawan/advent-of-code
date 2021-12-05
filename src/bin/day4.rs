@@ -1,7 +1,5 @@
 use regex::Regex;
 use std::fs;
-use std::fs::File;
-use std::io::{BufReader, Read};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -30,7 +28,7 @@ impl Board {
 }
 
 fn is_completed(board: &Board) -> bool {
-    let mut count = 0;
+    let mut count;
     // horizontal
     for y in 0..board.width() {
         count = 0;
@@ -62,6 +60,7 @@ fn is_completed(board: &Board) -> bool {
     false
 }
 
+#[allow(dead_code)]
 fn fill_in(inputs: Vec<usize>, mut boards: Vec<Board>) -> Option<(usize, Board)> {
     for input in inputs.iter() {
         for board in &mut boards {
@@ -79,7 +78,6 @@ fn fill_in(inputs: Vec<usize>, mut boards: Vec<Board>) -> Option<(usize, Board)>
 fn fill_in_last(inputs: Vec<usize>, mut boards: Vec<Board>) -> Option<(usize, Board)> {
     let mut completed_boards = Vec::new();
     let mut j = 0;
-    let mut active_boards = inputs.clone();
     for input in inputs.iter() {
         for board in &mut boards {
             if is_completed(board) {
@@ -173,7 +171,7 @@ fn parse_bingo_board(source: &str) -> (Board, &str) {
 
 fn main() {
     let args = Cli::from_args();
-    let mut source = fs::read_to_string(args.path.as_path()).unwrap();
+    let source = fs::read_to_string(args.path.as_path()).unwrap();
     //buf_reader.read_to_string(&mut source);
     let (inputs, boards) = parse_bingo(source.as_ref());
     if let Some((last_call, filled_board)) = fill_in_last(inputs, boards){
