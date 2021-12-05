@@ -76,6 +76,31 @@ fn fill_in(inputs: Vec<usize>, mut boards: Vec<Board>) -> Option<(usize, Board)>
     }
     None
 }
+fn fill_in_last(inputs: Vec<usize>, mut boards: Vec<Board>) -> Option<(usize, Board)> {
+    let mut completed_boards = Vec::new();
+    let mut j = 0;
+    let mut active_boards = inputs.clone();
+    for input in inputs.iter() {
+        for board in &mut boards {
+            if is_completed(board) {
+                continue;
+            }
+            if let Some(index) = board.entries.iter().position(|n| &n.value == input) {
+                let mark = &mut board.entries.get_mut(index).unwrap().mark;
+                *mark = true;
+            }
+            if is_completed(board) {
+                j += 1;
+                println!("{}", j);
+                completed_boards.push((input.clone(), board.clone()));
+            }
+        }
+    }
+    println!("board list count: {}", boards.len());
+    println!("Completed board count: {}", completed_boards.len());
+    let last_element = completed_boards.last().unwrap();
+    Some(last_element.clone())
+}
 
 fn parse_bingo(source: &str) -> (Vec<usize>, Vec<Board>) {
     let mut boards = Vec::new();
@@ -151,7 +176,7 @@ fn main() {
     let mut source = fs::read_to_string(args.path.as_path()).unwrap();
     //buf_reader.read_to_string(&mut source);
     let (inputs, boards) = parse_bingo(source.as_ref());
-    if let Some((last_call, filled_board)) = fill_in(inputs, boards){
+    if let Some((last_call, filled_board)) = fill_in_last(inputs, boards){
         println!("{:?}", &filled_board);
         let score = filled_board.entries.iter().filter(|e| e.mark == false).map(|e| e.value).fold(0, |a, e| a + e) * last_call;
         println!("Score: {}", score);
