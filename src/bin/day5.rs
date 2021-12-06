@@ -91,10 +91,6 @@ fn make_big_grid(coords: &Vec<(Coord, Coord)>) -> Grid {
     }
 }
 
-fn is_horizontal_or_vertical(coords: (Coord, Coord)) -> bool {
-    coords.0.x == coords.1.x || coords.0.y == coords.1.y
-}
-
 fn draw_line(grid: &mut Grid, coords: (Coord, Coord)) {
     if coords.0.x == coords.1.x {
         let x = coords.0.x;
@@ -116,11 +112,6 @@ fn draw_line(grid: &mut Grid, coords: (Coord, Coord)) {
         let max_steps = cmp::max(coords.1.x, coords.0.x) - cmp::min(coords.1.x, coords.0.x);
         let mut steps = 0;
         while steps <= max_steps {
-            println!(
-                "0x={} 0y={} 1x={} 1y={}",
-                coords.0.x, coords.0.y, coords.1.x, coords.1.y
-            );
-            println!("x={} y={} steps={} max_steps={}", x, y, steps, max_steps);
             grid.increment(x, y);
             steps += 1;
             if steps > max_steps {
@@ -148,9 +139,6 @@ impl Grid {
     fn increment(&mut self, x: usize, y: usize) {
         self.entries[y * self.width + x] += 1;
     }
-    fn get(&self, x: usize, y: usize) -> usize {
-        self.entries[y * self.width + x]
-    }
 }
 
 fn main() {
@@ -165,6 +153,7 @@ fn main() {
     println!("overlaps: {}", count);
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -240,7 +229,6 @@ mod tests {
         for c in coords {
             draw_line(&mut grid, c);
         }
-        println!("{:?}", &grid);
         assert_eq!(grid.entries, &[1, 0, 1, 0, 2, 0, 1, 0, 1]);
     }
 }
