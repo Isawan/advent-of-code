@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::fs;
 use std::num::ParseIntError;
 use structopt::StructOpt;
