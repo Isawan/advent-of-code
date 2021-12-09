@@ -1,4 +1,3 @@
-use ndarray::{arr1, arr2, Array1, Array2};
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use structopt::StructOpt;
@@ -9,46 +8,6 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-fn number_to_segment() -> Array2<usize> {
-    arr2(&[
-        [1, 1, 1, 0, 1, 1, 1], // 0
-        [0, 0, 1, 0, 0, 1, 0], // 1
-        [1, 0, 1, 1, 1, 0, 1], // 2
-        [1, 0, 1, 1, 0, 1, 1], // 3
-        [0, 1, 1, 1, 0, 1, 0], // 4
-        [1, 1, 0, 1, 0, 1, 1], // 5
-        [1, 1, 0, 1, 1, 1, 1], // 6
-        [1, 0, 1, 0, 0, 1, 0], // 7
-        [1, 1, 1, 1, 1, 1, 1], // 8
-        [1, 1, 1, 1, 0, 1, 1], // 9
-    ])
-}
-
-fn correct_segments() -> HashMap<usize, BTreeSet<usize>> {
-    let mut segment_map = HashMap::new();
-    let digits = &[
-        [1, 1, 1, 0, 1, 1, 1], // 0
-        [0, 0, 1, 0, 0, 1, 0], // 1
-        [1, 0, 1, 1, 1, 0, 1], // 2
-        [1, 0, 1, 1, 0, 1, 1], // 3
-        [0, 1, 1, 1, 0, 1, 0], // 4
-        [1, 1, 0, 1, 0, 1, 1], // 5
-        [1, 1, 0, 1, 1, 1, 1], // 6
-        [1, 0, 1, 0, 0, 1, 0], // 7
-        [1, 1, 1, 1, 1, 1, 1], // 8
-        [1, 1, 1, 1, 0, 1, 1], // 9
-    ];
-    for (i, digit_segments) in digits.iter().enumerate() {
-        let mut segment_set = BTreeSet::new();
-        for (j, segment) in digit_segments.iter().enumerate() {
-            if *segment == 1 {
-                segment_set.insert(j);
-            }
-        }
-        segment_map.insert(i, segment_set);
-    }
-    segment_map
-}
 
 fn letter_to_index(letter: char) -> usize {
     match letter {
@@ -106,6 +65,7 @@ fn count_easy_digits(four_digits_list: Vec<Vec<BTreeSet<usize>>>) -> usize {
         .count()
 }
 
+#[allow(dead_code)]
 fn solve_number_to_set(digits: Vec<BTreeSet<usize>>) -> HashMap<usize, BTreeSet<usize>>{
     let one = digits
         .iter()
@@ -130,7 +90,7 @@ fn solve_number_to_set(digits: Vec<BTreeSet<usize>>) -> HashMap<usize, BTreeSet<
     //find two
     let two;
     {
-        let two_s1 = (four - one);
+        let two_s1 = four - one;
         let two_c1 = digits
             .iter()
             .filter(|x| x.is_subset(&two_s1))
@@ -157,7 +117,7 @@ fn solve_number_to_set(digits: Vec<BTreeSet<usize>>) -> HashMap<usize, BTreeSet<
 fn main() {
     let args = Cli::from_args();
     let source = fs::read_to_string(args.path.as_path()).unwrap();
-    let (s, f) = parse_input(&source);
+    let (_, f) = parse_input(&source);
     let count = count_easy_digits(f);
     println!("easy digit count: {}", count);
 }
