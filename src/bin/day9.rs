@@ -63,7 +63,6 @@ fn lowpoints_coords(grid: &HashMap<(i32, i32), u32>) -> Vec<(i32, i32)> {
 
 struct SearchState {
     pos: (i32, i32),
-    prev: u32,
 }
 
 fn basin_size(grid: &HashMap<(i32, i32), u32>, i: i32, j: i32) -> u32 {
@@ -73,7 +72,6 @@ fn basin_size(grid: &HashMap<(i32, i32), u32>, i: i32, j: i32) -> u32 {
     let mut basin_count = 0;
     search_stack.push(SearchState {
         pos: (i, j),
-        prev: *grid.get(&(i, j)).unwrap(),
     });
     loop {
         if let Some(state) = search_stack.pop() {
@@ -100,7 +98,6 @@ fn basin_size(grid: &HashMap<(i32, i32), u32>, i: i32, j: i32) -> u32 {
                     if *neighbour_value != 9 && neighbour_value >= &value {
                         search_stack.push(SearchState {
                             pos: (*k, *l),
-                            prev: *value,
                         })
                     }
                 }
