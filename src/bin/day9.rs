@@ -70,9 +70,7 @@ fn basin_size(grid: &HashMap<(i32, i32), u32>, i: i32, j: i32) -> u32 {
     let mut visited = HashSet::<(i32, i32)>::new();
     let mut search_stack = Vec::new();
     let mut basin_count = 0;
-    search_stack.push(SearchState {
-        pos: (i, j),
-    });
+    search_stack.push(SearchState { pos: (i, j) });
     loop {
         if let Some(state) = search_stack.pop() {
             if visited.contains(&state.pos) {
@@ -96,9 +94,7 @@ fn basin_size(grid: &HashMap<(i32, i32), u32>, i: i32, j: i32) -> u32 {
             for (k, l) in neighbours {
                 if let Some(neighbour_value) = grid.get(&(*k, *l)) {
                     if *neighbour_value != 9 && neighbour_value >= &value {
-                        search_stack.push(SearchState {
-                            pos: (*k, *l),
-                        })
+                        search_stack.push(SearchState { pos: (*k, *l) })
                     }
                 }
             }
@@ -124,7 +120,7 @@ fn main() {
         .map(|(i, j)| basin_size(&grid, *i, *j))
         .collect::<Vec<u32>>();
     basins.sort();
-    let x = basins[basins.len()-3..].iter().fold(1,|a,x| a * x);
+    let x = basins[basins.len() - 3..].iter().fold(1, |a, x| a * x);
     println!("{}", x);
 }
 #[cfg(test)]

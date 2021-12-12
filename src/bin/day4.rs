@@ -33,28 +33,37 @@ fn is_completed(board: &Board) -> bool {
     for y in 0..board.width() {
         count = 0;
         for x in 0..board.height() {
-            let mark =  board.entries.get(y*board.width() + x).expect("out of bounds").mark;
-            count = count + match mark {
-                true => 1,
-                false => 0,
-            }
+            let mark = board
+                .entries
+                .get(y * board.width() + x)
+                .expect("out of bounds")
+                .mark;
+            count = count
+                + match mark {
+                    true => 1,
+                    false => 0,
+                }
         }
         if count == 5 {
-            return true
+            return true;
         }
-
     }
     for x in 0..board.width() {
         count = 0;
         for y in 0..board.height() {
-            let mark =  board.entries.get(y*board.width() + x).expect("out of bounds").mark;
-            count = count + match mark {
-                true => 1,
-                false => 0,
-            }
+            let mark = board
+                .entries
+                .get(y * board.width() + x)
+                .expect("out of bounds")
+                .mark;
+            count = count
+                + match mark {
+                    true => 1,
+                    false => 0,
+                }
         }
         if count == 5 {
-            return true
+            return true;
         }
     }
     false
@@ -165,7 +174,7 @@ fn parse_bingo_board(source: &str) -> (Board, &str) {
         Board {
             entries: board_entries,
         },
-        &remaining_input
+        &remaining_input,
     )
 }
 
@@ -174,9 +183,15 @@ fn main() {
     let source = fs::read_to_string(args.path.as_path()).unwrap();
     //buf_reader.read_to_string(&mut source);
     let (inputs, boards) = parse_bingo(source.as_ref());
-    if let Some((last_call, filled_board)) = fill_in_last(inputs, boards){
+    if let Some((last_call, filled_board)) = fill_in_last(inputs, boards) {
         println!("{:?}", &filled_board);
-        let score = filled_board.entries.iter().filter(|e| e.mark == false).map(|e| e.value).fold(0, |a, e| a + e) * last_call;
+        let score = filled_board
+            .entries
+            .iter()
+            .filter(|e| e.mark == false)
+            .map(|e| e.value)
+            .fold(0, |a, e| a + e)
+            * last_call;
         println!("Score: {}", score);
     } else {
         println!("No winners found");

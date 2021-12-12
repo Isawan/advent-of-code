@@ -21,7 +21,7 @@ fn parse_line(line: &str) -> Option<(Direction, i32)> {
         "up" => Direction::Up,
         "down" => Direction::Down,
         "forward" => Direction::Forward,
-        _ => return None
+        _ => return None,
     };
     if let Ok(count) = tokens.next()?.parse::<i32>() {
         // handle the case where more than two tokens a present
@@ -57,23 +57,24 @@ fn final_position(movement_stream: impl BufRead) -> (i32, i32) {
                     Direction::Down => 0,
                     Direction::Forward => count,
                 };
-            depth = depth + match direction {
+            depth = depth
+                + match direction {
                     Direction::Up => 0,
                     Direction::Down => 0,
                     Direction::Forward => aim * count,
-            };
+                };
         } else {
             break;
         }
     }
-    return (horizontal_position, depth)
+    return (horizontal_position, depth);
 }
 
 fn main() {
     let args = Cli::from_args();
     let file = File::open(args.path.as_path()).unwrap();
     let buf_reader = BufReader::new(file);
-    let (x,y) = final_position(buf_reader);
+    let (x, y) = final_position(buf_reader);
     println!("x: {} y: {}", x, y);
     println!("{}", x * y);
 }

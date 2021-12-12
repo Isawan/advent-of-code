@@ -8,7 +8,6 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-
 fn letter_to_index(letter: char) -> usize {
     match letter {
         'a' => 0,
@@ -66,7 +65,7 @@ fn count_easy_digits(four_digits_list: Vec<Vec<BTreeSet<usize>>>) -> usize {
 }
 
 #[allow(dead_code)]
-fn solve_number_to_set(digits: Vec<BTreeSet<usize>>) -> HashMap<usize, BTreeSet<usize>>{
+fn solve_number_to_set(digits: Vec<BTreeSet<usize>>) -> HashMap<usize, BTreeSet<usize>> {
     let one = digits
         .iter()
         .filter(|digit| digit.len() == 2)
@@ -106,11 +105,11 @@ fn solve_number_to_set(digits: Vec<BTreeSet<usize>>) -> HashMap<usize, BTreeSet<
     }
 
     let mut result = HashMap::new();
-    result.insert(0,one.clone()   );
-    result.insert(3,four.clone()  );
-    result.insert(6,seven.clone() );
-    result.insert(7,eight.clone() );
-    result.insert(1,two.clone()   );
+    result.insert(0, one.clone());
+    result.insert(3, four.clone());
+    result.insert(6, seven.clone());
+    result.insert(7, eight.clone());
+    result.insert(1, two.clone());
     result
 }
 
@@ -151,26 +150,26 @@ cabgde gd becgfd dgfe cebgf gfdeacb fdbac bcgaef bgdfc gdc | cbfad dg dgef ecfbd
         assert_eq!(f[2][2], t3);
     }
 
-//    #[test]
-//    fn test_single_solver() {
-//        let (s, _) = parse_input(
-//            "acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab | cdfeb fcadb cdfeb cdbaf\n",
-//        );
-//        let r = solve_number_to_set(s[0].clone());
-//        let mut expected = HashMap::new();
-//        let f = |x: &str| x.chars().map(letter_to_index).collect::<BTreeSet<usize>>();
-//
-//        expected.insert(0, f("cagedb" ));
-//        expected.insert(1, f("ab"     ));
-//        expected.insert(2, f("gcdfa"  ));
-//        expected.insert(3, f("fbcad"  ));
-//        expected.insert(4, f("eafb"   ));
-//        expected.insert(5, f("cdfbe"  ));
-//        expected.insert(6, f("cdfgeb" ));
-//        expected.insert(7, f("dab"    ));
-//        expected.insert(8, f("acedgfb"));
-//        expected.insert(9, f("cefabd" ));
-//
-//        assert_eq!(r,expected);
-//    }
+    //    #[test]
+    //    fn test_single_solver() {
+    //        let (s, _) = parse_input(
+    //            "acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab | cdfeb fcadb cdfeb cdbaf\n",
+    //        );
+    //        let r = solve_number_to_set(s[0].clone());
+    //        let mut expected = HashMap::new();
+    //        let f = |x: &str| x.chars().map(letter_to_index).collect::<BTreeSet<usize>>();
+    //
+    //        expected.insert(0, f("cagedb" ));
+    //        expected.insert(1, f("ab"     ));
+    //        expected.insert(2, f("gcdfa"  ));
+    //        expected.insert(3, f("fbcad"  ));
+    //        expected.insert(4, f("eafb"   ));
+    //        expected.insert(5, f("cdfbe"  ));
+    //        expected.insert(6, f("cdfgeb" ));
+    //        expected.insert(7, f("dab"    ));
+    //        expected.insert(8, f("acedgfb"));
+    //        expected.insert(9, f("cefabd" ));
+    //
+    //        assert_eq!(r,expected);
+    //    }
 }

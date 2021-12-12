@@ -109,11 +109,7 @@ fn get_values(stream: impl BufRead) -> Result<(usize, usize, usize, usize), Erro
     return Ok((gamma, epsilon, oxygen, co2));
 }
 
-fn bit_criteria(
-    bits: Vec<Vec<Binary>>,
-    level: usize,
-    search: fn(i32) -> Binary,
-) -> Vec<Binary> {
+fn bit_criteria(bits: Vec<Vec<Binary>>, level: usize, search: fn(i32) -> Binary) -> Vec<Binary> {
     let summation: i32 = bits
         .iter()
         .map(|x| match x.get(level).unwrap() {
@@ -141,6 +137,9 @@ fn main() {
     let buf_reader = BufReader::new(file);
     let (gamma, epsilon, oxygen, co2) = get_values(buf_reader).unwrap();
 
-    println!("gamma={} epsilon={} oxygen={} co2={}", gamma, epsilon, oxygen, co2);
+    println!(
+        "gamma={} epsilon={} oxygen={} co2={}",
+        gamma, epsilon, oxygen, co2
+    );
     println!("multiplied = {}", gamma * epsilon);
 }

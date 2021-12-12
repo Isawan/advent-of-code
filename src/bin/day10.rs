@@ -26,7 +26,6 @@ fn score_incomplete_sequence(sequence: Vec<char>) -> u64 {
     })
 }
 
-
 fn parse_corrupt(source: &str) -> Line {
     let mut stack = Vec::new();
     for c in source.chars() {
@@ -189,8 +188,8 @@ mod tests {
             }
         }
         scores.sort();
-        println!("{:?}",scores);
-        let total = scores.get((scores.len()-1)/2).unwrap();
+        println!("{:?}", scores);
+        let total = scores.get((scores.len() - 1) / 2).unwrap();
         assert_eq!(*total, 288957);
     }
 }

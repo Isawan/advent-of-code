@@ -54,5 +54,4 @@ mod tests {
         assert_eq!(fuel_cost(4), 4 + 3 + 2 + 1);
         assert_eq!(fuel_cost(5), 5 + 4 + 3 + 2 + 1);
     }
-
 }
