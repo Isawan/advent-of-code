@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet,BTreeMap};
 use std::fs;
 use structopt::StructOpt;
 
@@ -11,9 +11,22 @@ struct Cli {
 
 struct Network<'a> {
     edges: BTreeSet<(Cave<'a>, Cave<'a>)>,
+    visit_limit: BTreeMap<Cave<'a>, u32>,
 }
 
 impl<'a> Network<'a> {
+    fn new(edges: &[(Cave<'a>,Cave<'a>)]) -> Self {
+        let mut network = Network {
+            edges: BTreeSet::new(),
+            visit_limit: BTreeMap::new(),
+        };
+        for edge in edges {
+            network.edges.insert((edge.1,edge.0));
+            network.edges.insert(*edge);
+        }
+        return network
+    }
+
     fn neighbours(&self, cave: &Cave) -> BTreeSet<&'a Cave> {
         let mut v = BTreeSet::new();
         for edge in self.edges.iter() {
@@ -23,6 +36,15 @@ impl<'a> Network<'a> {
         }
         v
     }
+}
+
+struct PathVisited<'a> { 
+    path: Vec<Cave<'a>>,
+    second_visit: Option<Cave<'a>>,
+}
+
+impl<'a> PathVisited<'a> {
+
 }
 
 
@@ -44,15 +66,14 @@ impl<'a> Cave<'a> {
 
 fn parse_network(source: &str) -> Network {
     let re = Regex::new(r"(.+?)-(.+)").unwrap();
-    let mut edges = BTreeSet::new();
+    let mut edges = Vec::new();
     let captures = source.trim().split('\n').map(|x| re.captures(x).unwrap());
     for capture in captures {
         let k = capture.get(1).unwrap().as_str();
         let j = capture.get(2).unwrap().as_str();
-        edges.insert((Cave::new(k), Cave::new(j)));
-        edges.insert((Cave::new(j), Cave::new(k)));
+        edges.push((Cave::new(k), Cave::new(j)));
     }
-    Network{ edges }
+    Network::new(edges.as_slice())
 }
 
 fn paths_since_small_room<'a>(paths: &'a [Cave]) -> &'a [Cave<'a>] {
