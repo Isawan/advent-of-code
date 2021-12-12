@@ -127,19 +127,21 @@ fn main() {
 mod tests {
     use super::*;
 
+    #[test]
     fn test_parse_input() {
         let input = parse_input("222\n212\n331\n");
         assert_eq!(input.get(&(0, 0)), Some(&2));
-        assert_eq!(input.get(&(0, 1)), Some(&2));
-        assert_eq!(input.get(&(0, 2)), Some(&2));
         assert_eq!(input.get(&(1, 0)), Some(&2));
+        assert_eq!(input.get(&(2, 0)), Some(&2));
+        assert_eq!(input.get(&(0, 1)), Some(&2));
         assert_eq!(input.get(&(1, 1)), Some(&1));
-        assert_eq!(input.get(&(1, 2)), Some(&2));
-        assert_eq!(input.get(&(2, 0)), Some(&3));
-        assert_eq!(input.get(&(2, 1)), Some(&3));
-        assert_eq!(input.get(&(2, 2)), Some(&2));
+        assert_eq!(input.get(&(2, 1)), Some(&2));
+        assert_eq!(input.get(&(0, 2)), Some(&3));
+        assert_eq!(input.get(&(1, 2)), Some(&3));
+        assert_eq!(input.get(&(2, 2)), Some(&1));
     }
 
+    #[test]
     fn test_is_low() {
         let mut input = HashMap::new();
         input.insert((0, 0), 2);

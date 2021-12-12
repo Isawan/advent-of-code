@@ -1,5 +1,6 @@
 use std::fs;
 use structopt::StructOpt;
+
 #[derive(StructOpt)]
 struct Cli {
     #[structopt(parse(from_os_str))]
