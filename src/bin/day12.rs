@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::collections::{BTreeSet,BTreeMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use structopt::StructOpt;
 
@@ -15,16 +15,16 @@ struct Network<'a> {
 }
 
 impl<'a> Network<'a> {
-    fn new(edges: &[(Cave<'a>,Cave<'a>)]) -> Self {
+    fn new(edges: &[(Cave<'a>, Cave<'a>)]) -> Self {
         let mut network = Network {
             edges: BTreeSet::new(),
             visit_limit: BTreeMap::new(),
         };
         for edge in edges {
-            network.edges.insert((edge.1,edge.0));
+            network.edges.insert((edge.1, edge.0));
             network.edges.insert(*edge);
         }
-        return network
+        return network;
     }
 
     fn neighbours(&self, cave: &Cave) -> BTreeSet<&'a Cave> {
@@ -38,15 +38,25 @@ impl<'a> Network<'a> {
     }
 }
 
-struct PathVisited<'a> { 
-    path: Vec<Cave<'a>>,
-    second_visit: Option<Cave<'a>>,
+struct PathVisited<'a, 'b: 'a> {
+    path: &'a [Cave<'b>],
+    second_visit: Option<Cave<'b>>,
 }
 
-impl<'a> PathVisited<'a> {
-
+impl<'a,'b> PathVisited<'a,'b> {
+    fn len(&self) -> usize {
+        self.path.len()
+    }
+    fn contains(&self, v: &'b Cave) -> bool {
+        self.contains(v)
+    }
 }
+impl<'a,'b> AsRef<[Cave<'b>]> for PathVisited<'a,'b>{
 
+    fn as_ref(&self) -> &[Cave<'b>] {
+        &self.path
+    }
+}
 
 #[derive(PartialEq, Clone, Copy, Debug, Eq, PartialOrd, Ord)]
 enum Cave<'a> {
@@ -79,15 +89,44 @@ fn parse_network(source: &str) -> Network {
 fn paths_since_small_room<'a>(paths: &'a [Cave]) -> &'a [Cave<'a>] {
     for (i, cave) in paths.iter().rev().enumerate() {
         if let Cave::Small(_) = cave {
-            return &paths[paths.len()-i-1..]
+            return &paths[paths.len() - i - 1..];
         }
     }
-    return paths
+    return paths;
 }
 
-fn search_network<'a>(visited_paths: &[Cave<'a>], network: &'a Network, final_target: Cave) -> u32{
+fn search_network_with_revisit<'a>(
+    visited_paths: &PathVisited,
+    network: &'a Network,
+    final_target: Cave,
+) -> u32 {
     assert!(visited_paths.len() > 0);
-    let current_cave = &visited_paths[visited_paths.len()-1];
+    let current_cave = &visited_paths.path[visited_paths.len() - 1];
+    let mut valid_paths = 0;
+    for target in network.neighbours(current_cave) {
+        if *target == final_target {
+            valid_paths = valid_paths + 1;
+            continue;
+        }
+        if paths_since_small_room(visited_paths.as_ref()).contains(target) {
+            continue;
+        }
+        if let Cave::Small(_) = target {
+            if visited_paths.contains(target) {
+                continue;
+            }
+        }
+        let mut v = Vec::new();
+        v.extend_from_slice(visited_paths.as_ref());
+        v.push(*target);
+        valid_paths = valid_paths + search_network(&v, network, final_target);
+    }
+    valid_paths
+}
+
+fn search_network<'a>(visited_paths: &[Cave<'a>], network: &'a Network, final_target: Cave) -> u32 {
+    assert!(visited_paths.len() > 0);
+    let current_cave = &visited_paths[visited_paths.len() - 1];
     let mut valid_paths = 0;
     for target in network.neighbours(current_cave) {
         if *target == final_target {
@@ -99,7 +138,7 @@ fn search_network<'a>(visited_paths: &[Cave<'a>], network: &'a Network, final_ta
         }
         if let Cave::Small(_) = target {
             if visited_paths.contains(target) {
-                continue
+                continue;
             }
         }
         let mut v = Vec::new();
@@ -148,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn test_direct_adjacentcy () {
+    fn test_direct_adjacentcy() {
         let network = parse_network("start-end\n");
         let start = Cave::new("start");
         let end = Cave::new("end");
@@ -186,5 +225,4 @@ mod tests {
         let v = search_network(&start_path, &network, end_node);
         assert_eq!(v, 10);
     }
-
 }
