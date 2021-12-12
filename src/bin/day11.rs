@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_multiple_rounds() {
-        let mut grid = parse_input(
+        let grid = parse_input(
             "5483143223\n\
                                     2745854711\n\
                                     5264556173\n\
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_search_light_up() {
-        let mut grid = parse_input(
+        let grid = parse_input(
             "5483143223\n\
                                     2745854711\n\
                                     5264556173\n\
