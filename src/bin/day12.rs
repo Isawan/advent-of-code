@@ -85,16 +85,13 @@ fn paths_since_small_room<'a>(paths: &'a [Cave]) -> &'a [Cave<'a>] {
     return paths
 }
 
-fn search_network<'a>(visited_paths: &[Cave<'a>], network: &'a Network, final_target: Cave) -> Vec<Vec<Cave<'a>>>{
+fn search_network<'a>(visited_paths: &[Cave<'a>], network: &'a Network, final_target: Cave) -> u32{
     assert!(visited_paths.len() > 0);
     let current_cave = &visited_paths[visited_paths.len()-1];
-    let mut valid_paths : Vec<Vec<Cave<'a>>> = Vec::new();
+    let mut valid_paths = 0;
     for target in network.neighbours(current_cave) {
         if *target == final_target {
-            let mut v = Vec::new();
-            v.extend_from_slice(visited_paths);
-            v.push(*target);
-            valid_paths.push(v);
+            valid_paths = valid_paths + 1;
             continue;
         }
         if paths_since_small_room(visited_paths).contains(target) {
@@ -108,8 +105,7 @@ fn search_network<'a>(visited_paths: &[Cave<'a>], network: &'a Network, final_ta
         let mut v = Vec::new();
         v.extend_from_slice(visited_paths);
         v.push(*target);
-        let mut paths = search_network(&v, network, final_target);
-        valid_paths.append(&mut paths);
+        valid_paths = valid_paths + search_network(&v, network, final_target);
     }
     valid_paths
 }
@@ -121,7 +117,7 @@ fn main() {
     let start = Cave::new("start");
     let end = Cave::new("end");
     let valid_paths = search_network(&vec![start], &network, end);
-    println!("Possible paths: {}", valid_paths.len());
+    println!("Possible paths: {}", valid_paths);
 }
 
 #[cfg(test)]
@@ -156,7 +152,8 @@ mod tests {
         let network = parse_network("start-end\n");
         let start = Cave::new("start");
         let end = Cave::new("end");
-        let v = search_network(&vec![start,end], &network, end);
+        let v = search_network(&vec![start], &network, end);
+        assert_eq!(v, 1);
     }
 
     #[test]
@@ -170,7 +167,7 @@ mod tests {
         let end_node = Cave::new("end");
         let start_path = vec![start_node];
         let v = search_network(&start_path, &network, end_node);
-        assert_eq!(v.len(), 1);
+        assert_eq!(v, 1);
     }
 
     #[test]
@@ -187,7 +184,7 @@ mod tests {
         let start_path = vec![Cave::new("start")];
         let end_node = Cave::new("end");
         let v = search_network(&start_path, &network, end_node);
-
+        assert_eq!(v, 10);
     }
 
 }
