@@ -38,23 +38,50 @@ impl<'a> Network<'a> {
     }
 }
 
-struct PathVisited<'a, 'b: 'a> {
-    path: &'a [Cave<'b>],
-    second_visit: Option<Cave<'b>>,
+#[derive(Debug)]
+struct PathVisited<'a> {
+    path: Vec<Cave<'a>>,
+    done_second_visit: bool,
 }
 
-impl<'a,'b> PathVisited<'a,'b> {
+impl<'a> PathVisited<'a> {
+    fn with_next(&self, target: Cave<'a>) -> Self {
+        let mut v = Vec::new();
+        v.extend_from_slice(self.as_ref());
+        v.push(target);
+        PathVisited {
+            path: v,
+            done_second_visit: self.done_second_visit,
+        }
+    }
+
+    fn visited(self, visit_state: bool) -> Self {
+        PathVisited {
+            path: self.path,
+            done_second_visit: self.done_second_visit || visit_state,
+        }
+    }
+
     fn len(&self) -> usize {
         self.path.len()
     }
-    fn contains(&self, v: &'b Cave) -> bool {
-        self.contains(v)
+    fn contains(&self, v: &'a Cave) -> bool {
+        self.path.contains(v)
     }
 }
-impl<'a,'b> AsRef<[Cave<'b>]> for PathVisited<'a,'b>{
 
-    fn as_ref(&self) -> &[Cave<'b>] {
+impl<'a> AsRef<[Cave<'a>]> for PathVisited<'a> {
+    fn as_ref(&self) -> &[Cave<'a>] {
         &self.path
+    }
+}
+
+impl<'a> From<&'a [Cave<'a>]> for PathVisited<'a> {
+    fn from(slice: &[Cave<'a>]) -> Self {
+        PathVisited {
+            path: slice.iter().map(|x| *x).collect(), 
+            done_second_visit: false,
+        }
     }
 }
 
@@ -63,6 +90,9 @@ enum Cave<'a> {
     Large(&'a str),
     Small(&'a str),
 }
+
+const START: Cave = Cave::Small("start");
+const END: Cave = Cave::Small("end");
 
 impl<'a> Cave<'a> {
     fn new(name: &'a str) -> Self {
@@ -89,14 +119,14 @@ fn parse_network(source: &str) -> Network {
 fn paths_since_small_room<'a>(paths: &'a [Cave]) -> &'a [Cave<'a>] {
     for (i, cave) in paths.iter().rev().enumerate() {
         if let Cave::Small(_) = cave {
-            return &paths[paths.len() - i - 1..];
+            return &paths[paths.len() - i..];
         }
     }
     return paths;
 }
 
 fn search_network_with_revisit<'a>(
-    visited_paths: &PathVisited,
+    visited_paths: &PathVisited<'a>,
     network: &'a Network,
     final_target: Cave,
 ) -> u32 {
@@ -104,22 +134,36 @@ fn search_network_with_revisit<'a>(
     let current_cave = &visited_paths.path[visited_paths.len() - 1];
     let mut valid_paths = 0;
     for target in network.neighbours(current_cave) {
+        let mut is_revisit = false;
+        // handle reaching destination
         if *target == final_target {
             valid_paths = valid_paths + 1;
             continue;
         }
+        // Loop detection
         if paths_since_small_room(visited_paths.as_ref()).contains(target) {
+            println!("paths_since {:?}", paths_since_small_room(visited_paths.as_ref()));
+            println!("{:?}   {:?}", visited_paths, target);
             continue;
         }
         if let Cave::Small(_) = target {
             if visited_paths.contains(target) {
-                continue;
+                if *target == START || *target == END {
+                    continue;
+                }
+                if !visited_paths.done_second_visit {
+                    is_revisit = true;
+                } else {
+                    continue;
+                }
             }
         }
-        let mut v = Vec::new();
-        v.extend_from_slice(visited_paths.as_ref());
-        v.push(*target);
-        valid_paths = valid_paths + search_network(&v, network, final_target);
+        let child_paths = search_network_with_revisit(
+            &visited_paths.with_next(*target).visited(is_revisit),
+            network,
+            final_target,
+        );
+        valid_paths = valid_paths + child_paths
     }
     valid_paths
 }
@@ -157,6 +201,8 @@ fn main() {
     let end = Cave::new("end");
     let valid_paths = search_network(&vec![start], &network, end);
     println!("Possible paths: {}", valid_paths);
+    let valid_paths = search_network_with_revisit(&vec![start].as_slice().into(), &network, end);
+    println!("Paths with revisit: {}", valid_paths);
 }
 
 #[cfg(test)]
@@ -224,5 +270,22 @@ mod tests {
         let end_node = Cave::new("end");
         let v = search_network(&start_path, &network, end_node);
         assert_eq!(v, 10);
+    }
+
+    #[test]
+    fn test_panic() {
+        let network = parse_network(
+            "start-A\n\
+             start-b\n\
+             A-c\n\
+             A-b\n\
+             b-d\n\
+             A-end\n\
+             b-end\n",
+        );
+        let start_path = vec![Cave::new("start")];
+        let end_node = Cave::new("end");
+        let v = search_network_with_revisit(&start_path.as_slice().into(), &network, end_node);
+        assert_eq!(v, 36);
     }
 }
