@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fs;
 use structopt::StructOpt;
 
@@ -11,14 +11,12 @@ struct Cli {
 
 struct Network<'a> {
     edges: BTreeSet<(Cave<'a>, Cave<'a>)>,
-    visit_limit: BTreeMap<Cave<'a>, u32>,
 }
 
 impl<'a> Network<'a> {
     fn new(edges: &[(Cave<'a>, Cave<'a>)]) -> Self {
         let mut network = Network {
             edges: BTreeSet::new(),
-            visit_limit: BTreeMap::new(),
         };
         for edge in edges {
             network.edges.insert((edge.1, edge.0));
@@ -79,7 +77,7 @@ impl<'a> AsRef<[Cave<'a>]> for PathVisited<'a> {
 impl<'a> From<&'a [Cave<'a>]> for PathVisited<'a> {
     fn from(slice: &[Cave<'a>]) -> Self {
         PathVisited {
-            path: slice.iter().map(|x| *x).collect(), 
+            path: slice.iter().map(|x| *x).collect(),
             done_second_visit: false,
         }
     }
@@ -142,7 +140,10 @@ fn search_network_with_revisit<'a>(
         }
         // Loop detection
         if paths_since_small_room(visited_paths.as_ref()).contains(target) {
-            println!("paths_since {:?}", paths_since_small_room(visited_paths.as_ref()));
+            println!(
+                "paths_since {:?}",
+                paths_since_small_room(visited_paths.as_ref())
+            );
             println!("{:?}   {:?}", visited_paths, target);
             continue;
         }
