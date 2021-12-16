@@ -180,6 +180,6 @@ mod tests {
                      \n\
                      fold along y=7\n\
                      fold along x=5\n";
-        let (dots, fi) = parse_input(input);
+        let (_, _) = parse_input(input);
     }
 }

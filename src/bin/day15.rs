@@ -4,11 +4,8 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::BinaryHeap;
 use std::fs;
-use std::io::stdout;
-use std::io::Write;
 use std::rc::Rc;
 use structopt::StructOpt;
-use std::cmp;
 
 #[derive(StructOpt)]
 struct Cli {
@@ -52,12 +49,13 @@ fn flatten_search_state(state: Rc<SearchState>) -> Vec<((i32, i32), u32)> {
             None => {
                 break;
             }
-        } 
+        }
     }
     result.reverse();
     result
 }
 
+#[allow(dead_code)]
 fn visualize(grid: &Grid) -> String {
     let (max_x, max_y) = corner(grid);
     let mut s = String::new();
@@ -74,11 +72,14 @@ fn visualize(grid: &Grid) -> String {
 fn expand_map(grid: &Grid) -> Grid {
     let mut result = BTreeMap::new();
     let corner = corner(&grid);
-    for ((i,j),v) in grid { 
+    for ((i, j), v) in grid {
         for k in 0..5 {
             for l in 0..5 {
                 let v = v + l as u32 + k as u32 - 1;
-                result.insert((k*(corner.0+1)+i,l*(corner.1+1)+j), (v % 9) + 1);
+                result.insert(
+                    (k * (corner.0 + 1) + i, l * (corner.1 + 1) + j),
+                    (v % 9) + 1,
+                );
             }
         }
     }
@@ -100,7 +101,7 @@ fn risk_search(grid: &Grid) -> Vec<((i32, i32), u32)> {
     heap.push(Reverse(start));
     'outer: while let Some(Reverse(state)) = heap.pop() {
         if visited.contains(&state.pos) {
-            continue
+            continue;
         }
         for (i, j) in IntoIter::new([(0, -1), (0, 1), (-1, 0), (1, 0)]) {
             let x = &state.pos.0 + &i;
@@ -119,7 +120,7 @@ fn risk_search(grid: &Grid) -> Vec<((i32, i32), u32)> {
                     break 'outer;
                 }
                 heap.push(Reverse(probe));
-                visited.insert((state.pos));
+                visited.insert(state.pos);
             }
         }
         k = k + 1;
@@ -132,10 +133,10 @@ fn main() {
     let source = fs::read_to_string(args.path.as_path()).unwrap();
     let grid = parse_input(&source);
     let path = risk_search(&grid);
-    println!("minimum risk: {}", path[path.len()-1].1);
+    println!("minimum risk: {}", path[path.len() - 1].1);
     let expanded_grid = expand_map(&grid);
     let path = risk_search(&expanded_grid);
-    println!("minimum risk on expanded: {}", path[path.len()-1].1);
+    println!("minimum risk on expanded: {}", path[path.len() - 1].1);
 }
 
 #[cfg(test)]
@@ -168,10 +169,10 @@ mod tests {
              91234\n\
              12345\n\
              23456\n\
-             34567\n");
+             34567\n",
+        );
         let output = expand_map(&input);
         assert_eq!(output, exp);
-
     }
 
     #[test]
@@ -238,10 +239,10 @@ mod tests {
              57944568656815567976792667818781377892989248891319\n\
              75698651748671976285978218739618932984172914319528\n\
              56475739656758684176786979528789718163989182927419\n\
-             67554889357866599146897761125791887223681299833479\n");
+             67554889357866599146897761125791887223681299833479\n",
+        );
         let output = expand_map(&input);
         assert_eq!(output, exp);
-
     }
 
     #[test]
@@ -256,7 +257,7 @@ mod tests {
             })),
         };
         let output = flatten_search_state(Rc::new(input));
-        assert_eq!(output[0], ((0,0), 10));
-        assert_eq!(output[1], ((0,1), 20));
+        assert_eq!(output[0], ((0, 0), 10));
+        assert_eq!(output[1], ((0, 1), 20));
     }
 }

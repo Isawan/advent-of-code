@@ -1,8 +1,8 @@
 use regex::Regex;
-use std::array::IntoIter;
 use std::collections::BTreeMap;
 use std::fs;
 use std::iter::FromIterator;
+use std::array::IntoIter;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -30,7 +30,7 @@ impl Polymer {
         let mut last = stream.next().unwrap();
         loop {
             if let Some(next) = stream.next() {
-                let mut count = doublets.entry([last, next]).or_insert(0);
+                let count = doublets.entry([last, next]).or_insert(0);
                 *count = *count + 1;
                 last = next
             } else {
@@ -38,7 +38,7 @@ impl Polymer {
             }
         }
         for c in state.chars() {
-            let mut count = elements.entry(c).or_insert(0);
+            let count = elements.entry(c).or_insert(0);
             *count = *count + 1;
         }
 
@@ -46,18 +46,21 @@ impl Polymer {
     }
 
     fn most_common(&self) -> (char, u64) {
-        self.elements.iter().fold((' ',0),
-        |a,x| {
-            if *x.1 >= a.1 { (*x.0,*x.1) } else { a }
-        }
-        )
+        self.elements
+            .iter()
+            .fold((' ', 0), |a, x| if *x.1 >= a.1 { (*x.0, *x.1) } else { a })
     }
 
     fn least_common(&self) -> (char, u64) {
-        self.elements.iter().fold((' ',u64::MAX),
-        |a,x| {
-            if *x.1 <= a.1 { (*x.0,*x.1) } else { a }
-        }
+        self.elements.iter().fold(
+            (' ', u64::MAX),
+            |a, x| {
+                if *x.1 <= a.1 {
+                    (*x.0, *x.1)
+                } else {
+                    a
+                }
+            },
         )
     }
 }
@@ -234,6 +237,6 @@ mod tests {
         for _ in 0..10 {
             apply_rules(&rules, &mut state);
         }
-        assert_eq!(state.elements.values().fold(0, |a,x| a+x), 3073);
+        assert_eq!(state.elements.values().fold(0, |a, x| a + x), 3073);
     }
 }
