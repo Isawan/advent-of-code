@@ -135,6 +135,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::iter::FromIterator;
+    use std::array::IntoIter;
 
     #[test]
     fn test_parse_rule() {
