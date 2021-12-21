@@ -1,8 +1,6 @@
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::fs;
-use std::iter::FromIterator;
-use std::array::IntoIter;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]

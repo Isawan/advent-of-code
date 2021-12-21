@@ -1,8 +1,8 @@
 use byteorder::{BigEndian, ByteOrder};
 use hex::FromHex;
+use std::fmt::{Display, Error, Formatter};
 use std::fs;
 use structopt::StructOpt;
-use std::fmt::{Formatter, Error, Display};
 
 #[derive(StructOpt)]
 struct Cli {
@@ -50,15 +50,14 @@ impl<'a> BitSlice<'a> {
     }
 }
 
-impl Display for BitSlice<'_>{
+impl Display for BitSlice<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{{ offset: {}, ", self.offset);
+        write!(f, "{{ offset: {}, ", self.offset)?;
         for b in self.bytes {
-            write!(f, "{:08b}", b);
+            write!(f, "{:08b}", b)?;
         }
         write!(f, " }}")
     }
-
 }
 
 fn parse_version(stream: BitSlice) -> (u8, BitSlice) {
@@ -72,7 +71,6 @@ fn parse_version(stream: BitSlice) -> (u8, BitSlice) {
 }
 
 fn parse_type_id(stream: BitSlice) -> (u8, BitSlice) {
-
     let mut buffer = [0, 0];
     buffer[0] = stream.bytes[0];
     buffer[1] = *stream.bytes.get(1).unwrap_or(&0);
@@ -114,7 +112,7 @@ fn parse_literal(mut stream: BitSlice) -> (u64, BitSlice) {
 }
 
 fn parse_length_type_0_packets(mut stream: BitSlice) -> (Vec<Box<Packet>>, BitSlice) {
-    let mut buffer = [0, 0, 0 ,0];
+    let mut buffer = [0, 0, 0, 0];
     buffer[0] = stream.bytes[0];
     buffer[1] = *stream.bytes.get(1).unwrap_or(&0);
     buffer[2] = *stream.bytes.get(2).unwrap_or(&0);
@@ -169,7 +167,7 @@ fn parse_length_type(mut stream: BitSlice) -> (usize, BitSlice) {
     (length_type, stream)
 }
 
-fn parse_packet(mut stream: BitSlice) -> (Packet, BitSlice) {
+fn parse_packet(stream: BitSlice) -> (Packet, BitSlice) {
     let (version, stream) = parse_version(stream);
     let (type_id, mut stream) = parse_type_id(stream);
     let payload = match type_id {
@@ -222,7 +220,7 @@ fn main() {
     let args = Cli::from_args();
     let source = fs::read_to_string(args.path.as_path()).unwrap();
     let stream: Vec<u8> = FromHex::from_hex(source.trim()).unwrap();
-    let (packet,_) = parse_packet(BitSlice::new(&stream, 0));
+    let (packet, _) = parse_packet(BitSlice::new(&stream, 0));
     let sum = sum_version_numbers(&packet);
     println!("sum of version numbers: {}", sum);
 }
@@ -317,29 +315,28 @@ mod tests {
         assert_eq!(packet.payload, Payload::Literal(15));
     }
 
-//    #[test]
-//    fn test_length_0_packets() {
-//        let slice = Vec::from([
-//            0b0011_1000,
-//            0b0000_0000,
-//            0b0110_1111,
-//            0b0100_0101,
-//            0b0010_1001,
-//            0b0001_0010,
-//            0b0000_0000,
-//        ]);
-//        let (packet, bits) = parse_length_type_0_packets(BitSlice::new(&slice, 7));
-//    }
+    //    #[test]
+    //    fn test_length_0_packets() {
+    //        let slice = Vec::from([
+    //            0b0011_1000,
+    //            0b0000_0000,
+    //            0b0110_1111,
+    //            0b0100_0101,
+    //            0b0010_1001,
+    //            0b0001_0010,
+    //            0b0000_0000,
+    //        ]);
+    //        let (packet, bits) = parse_length_type_0_packets(BitSlice::new(&slice, 7));
+    //    }
 
     #[test]
     fn test_sum_packet_versions() {
         let stream: Vec<u8> = FromHex::from_hex("8A004A801A8002F478".trim()).unwrap();
-        let bits = BitSlice::new(&stream,0);
+        let bits = BitSlice::new(&stream, 0);
         println!("{}", bits);
-        let (packet,_) = parse_packet(bits);
+        let (packet, _) = parse_packet(bits);
         let sum = sum_version_numbers(&packet);
         println!("{:?}", packet);
         assert_eq!(sum, 16);
     }
-
 }
