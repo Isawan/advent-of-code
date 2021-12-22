@@ -102,7 +102,7 @@ fn simulate_full_cycle(mut state: State, bounds: Bounds) -> SimulationOutcome {
 }
 
 /// The trick with this is that we can ignore x position
-/// for now.
+/// in the first pass to find candidate y values.
 fn sim_until_highest(bounds: Bounds) -> i32 {
     let mut nolanding_count = 0;
     let mut highest = 0;
@@ -142,6 +142,45 @@ fn sim_until_highest(bounds: Bounds) -> i32 {
     highest
 }
 
+fn sum_all_possible(bounds: Bounds) -> i32 {
+    let mut nolanding_count = 0;
+    let mut count = 0;
+    let mut vy = -1000;
+    let mut candidate_vy = Vec::new();
+    while nolanding_count < 1000 {
+        let state = State {
+            x: bounds.min_x,
+            y: 0,
+            vx: 0,
+            vy: vy,
+        };
+        match simulate_full_cycle(state, bounds) {
+            SimulationOutcome::NoLanding => {
+                nolanding_count = nolanding_count + 1;
+            }
+            SimulationOutcome::HighestPosition(_) => {
+                nolanding_count = 0;
+                candidate_vy.push(vy);
+            }
+        }
+        vy = vy + 1;
+    }
+    for vx in 0..1000 {
+        for vy in &candidate_vy {
+            let state = State {
+                x: 0,
+                y: 0,
+                vx: vx,
+                vy: *vy,
+            };
+            if let SimulationOutcome::HighestPosition(_) = simulate_full_cycle(state, bounds) {
+                count = count + 1;
+            }
+        }
+    }
+    count
+}
+
 fn main() {
     let _ = Cli::from_args();
     let bounds = Bounds {
@@ -152,6 +191,8 @@ fn main() {
     };
     let high = sim_until_highest(bounds);
     println!("{}", high);
+    let count = sum_all_possible(bounds);
+    println!("{}", count);
 }
 
 #[cfg(test)]
