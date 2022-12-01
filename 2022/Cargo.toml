@@ -1,0 +1,14 @@
+[package]
+name = "advent-of-code"
+version = "0.1.0"
+authors = ["Isawan Millican <admin@isawan.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+structopt = "0.3.26"
+regex = "1.7.0"
+ndarray = "0.15.6"
+hex = "0.4.3"
+byteorder = "1.4.3"
