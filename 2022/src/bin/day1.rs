@@ -21,29 +21,6 @@ enum Line {
     Number(i32),
     Empty,
 }
-
-impl Tracker {
-    fn init() -> Self {
-        Tracker {
-            most_carried: 0,
-            latest_carried: 0,
-        }
-    }
-}
-
-fn chomp(state: Tracker, next: Line) -> Tracker {
-    match next {
-        Line::Empty => Tracker {
-            most_carried: std::cmp::max(state.most_carried, state.latest_carried),
-            latest_carried: 0,
-        },
-        Line::Number(i) => Tracker {
-            most_carried: state.most_carried,
-            latest_carried: state.latest_carried + i,
-        },
-    }
-}
-
 fn parse(line: &str) -> Line {
     if line == "" {
         return Line::Empty;
@@ -66,19 +43,21 @@ impl RankedTracker {
     }
 }
 
-// Pushing and popping a min heap ensures we always get 3-top elements in the heap
-fn get_top(mut heap: BinaryHeap<Reverse<i32>>, candidate: i32) -> BinaryHeap<Reverse<i32>> {
-    heap.push(Reverse(candidate));
-    if heap.len() > 3 {
-        let _ = heap.pop();
+// Pushing and popping a min heap ensures we always get k-top elements in the heap
+fn get_top(topk: usize) -> impl FnOnce(BinaryHeap<Reverse<i32>>, i32) -> BinaryHeap<Reverse<i32>> {
+    move |mut heap, candidate| {
+        heap.push(Reverse(candidate));
+        if heap.len() > topk {
+            let _ = heap.pop();
+        }
+        heap
     }
-    heap
 }
 
 fn ranked_chomp(state: RankedTracker, next: Line) -> RankedTracker {
     match next {
         Line::Empty => RankedTracker {
-            top_carried: get_top(state.top_carried, state.latest_carried),
+            top_carried: get_top(3)(state.top_carried, state.latest_carried),
             latest_carried: 0,
         },
         Line::Number(i) => RankedTracker {
@@ -111,6 +90,4 @@ mod tests {
     fn test_parse_number() {
         assert_eq!(parse("0100"), Line::Number(100));
     }
-    #[test]
-    fn test_parse_panic() {}
 }
