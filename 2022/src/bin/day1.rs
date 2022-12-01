@@ -1,9 +1,9 @@
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use structopt::StructOpt;
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
 
 #[derive(StructOpt)]
 struct Cli {
@@ -31,15 +31,14 @@ impl Tracker {
     }
 }
 
-
 fn chomp(state: Tracker, next: Line) -> Tracker {
     match next {
         Line::Empty => Tracker {
-            most_carried: state.most_carried,
+            most_carried: std::cmp::max(state.most_carried, state.latest_carried),
             latest_carried: 0,
         },
         Line::Number(i) => Tracker {
-            most_carried: std::cmp::max(state.latest_carried + i, state.most_carried),
+            most_carried: state.most_carried,
             latest_carried: state.latest_carried + i,
         },
     }
@@ -52,29 +51,52 @@ fn parse(line: &str) -> Line {
     return Line::Number(line.parse().expect("Could not parse"));
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 struct RankedTracker {
-    most_carried: Vec<i32>,
+    top_carried: BinaryHeap<Reverse<i32>>,
     latest_carried: i32,
 }
 
+impl RankedTracker {
+    fn init() -> Self {
+        RankedTracker {
+            top_carried: BinaryHeap::new(),
+            latest_carried: 0,
+        }
+    }
+}
 
-fn get_top(mut heap: BinaryHeap<Reverse<i32>>, candidate: i32) -> BinaryHeap<Reverse<i32>>{
+// Pushing and popping a min heap ensures we always get 3-top elements in the heap
+fn get_top(mut heap: BinaryHeap<Reverse<i32>>, candidate: i32) -> BinaryHeap<Reverse<i32>> {
     heap.push(Reverse(candidate));
-    if heap.len() >= 3 {
+    if heap.len() > 3 {
         let _ = heap.pop();
     }
     heap
 }
 
+fn ranked_chomp(state: RankedTracker, next: Line) -> RankedTracker {
+    match next {
+        Line::Empty => RankedTracker {
+            top_carried: get_top(state.top_carried, state.latest_carried),
+            latest_carried: 0,
+        },
+        Line::Number(i) => RankedTracker {
+            top_carried: state.top_carried,
+            latest_carried: state.latest_carried + i,
+        },
+    }
+}
 
 fn main() {
     let args = Cli::from_args();
-    println!("Error");
     let input = File::open(args.path.as_path()).unwrap();
     let lines = BufReader::new(input).lines();
-    let end_state = lines.map(|x| parse(&x.unwrap())).fold(Tracker::init(), chomp);
-    println!("{:?}", end_state);
+    // let end_state = lines.map(|x| parse(&x.unwrap())).fold(Tracker::init(), chomp);
+    let ranked_state = lines
+        .map(|x| parse(&x.unwrap()))
+        .fold(RankedTracker::init(), ranked_chomp);
+    println!("{:?}", ranked_state);
 }
 
 #[cfg(test)]
