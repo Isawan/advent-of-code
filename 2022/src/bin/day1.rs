@@ -11,21 +11,16 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
-struct Tracker {
-    most_carried: i32,
-    latest_carried: i32,
-}
-
 enum Line {
     Number(i32),
     Empty,
 }
+
 fn parse(line: &str) -> Line {
-    if line == "" {
+    if line.is_empty() {
         return Line::Empty;
     }
-    return Line::Number(line.parse().expect("Could not parse"));
+    Line::Number(line.parse().expect("Could not parse"))
 }
 
 #[derive(Debug, Clone)]
