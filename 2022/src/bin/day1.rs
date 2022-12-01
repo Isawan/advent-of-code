@@ -71,7 +71,6 @@ fn main() {
     let args = Cli::from_args();
     let input = File::open(args.path.as_path()).unwrap();
     let lines = BufReader::new(input).lines();
-    // let end_state = lines.map(|x| parse(&x.unwrap())).fold(Tracker::init(), chomp);
     let ranked_state = lines
         .map(|x| parse(&x.unwrap()))
         .fold(RankedTracker::init(), ranked_chomp);
