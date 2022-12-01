@@ -44,7 +44,7 @@ impl RankedTracker {
 }
 
 // Pushing and popping a min heap ensures we always get k-top elements in the heap
-fn get_top(topk: usize) -> impl FnOnce(BinaryHeap<Reverse<i32>>, i32) -> BinaryHeap<Reverse<i32>> {
+fn get_top(topk: usize) -> impl Fn(BinaryHeap<Reverse<i32>>, i32) -> BinaryHeap<Reverse<i32>> {
     move |mut heap, candidate| {
         heap.push(Reverse(candidate));
         if heap.len() > topk {
