@@ -11,12 +11,14 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
+#[derive(Clone, Debug)]
 enum Shape {
     Rock,
     Paper,
     Scissor,
 }
 
+#[derive(Clone, Debug)]
 struct Line {
     opponent: Shape,
     mine: Shape,
@@ -37,6 +39,21 @@ fn parse(line: &str) -> Line {
             "Z" => Shape::Scissor,
             _ => panic!("Unexpected"),
         },
+    }
+}
+
+fn wins(shape: Shape) -> Shape {
+    match shape {
+        Shape::Rock => Shape::Paper,
+        Shape::Paper => Shape::Scissor,
+        Shape::Scissor => Shape::Rock,
+    }
+}
+fn loses(shape: Shape) -> Shape {
+    match shape {
+        Shape::Rock => Shape::Scissor,
+        Shape::Paper => Shape::Rock,
+        Shape::Scissor => Shape::Paper,
     }
 }
 
@@ -87,12 +104,34 @@ fn score(line: Line) -> usize {
     outcome_score + shape_score
 }
 
+fn parse_two(line: &str) -> Line { 
+    let mut split = line.split(" ");
+    let opponent = match split.next().unwrap() {
+            "A" => Shape::Rock,
+            "B" => Shape::Paper,
+            "C" => Shape::Scissor,
+            _ => panic!("Unexpected"),
+        };
+    let x = Line {
+        opponent: opponent.clone(),
+        mine: match split.next().unwrap() {
+            "X" => loses(opponent),
+            "Y" => opponent,
+            "Z" => wins(opponent),
+            _ => panic!("Unexpected"),
+        },
+    };
+    println!("{:?}", x);
+    x
+}
+
 fn main() {
     let args = Cli::from_args();
     let input = File::open(args.path.as_path()).unwrap();
     let lines = BufReader::new(input).lines();
-    let score = lines.map(|x| parse(&x.unwrap())).fold(0,|x,y| score(y)+x);
-    println!("{}", score);
+    //let first_score = lines.map(|x| parse(&x.unwrap())).fold(0,|x,y| score(y)+x);
+    let second_score = lines.map(|x| parse_two(&x.unwrap())).fold(0,|x,y| score(y)+x);
+    println!("{}", second_score);
 }
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
+#[derive(Debug,PartialEq, Eq)]
 enum Line {
     Number(i32),
     Empty,
