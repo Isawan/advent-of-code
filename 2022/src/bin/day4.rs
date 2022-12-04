@@ -10,8 +10,9 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-fn parse_line(line: &str) -> ((u32, u32), (u32, u32)) {
+fn parse_line() -> impl Fn(&str) -> ((u32, u32), (u32, u32)) {
     let re = Regex::new(r"^(\d+)-(\d+),(\d+)-(\d+)$").unwrap();
+    move |line| {
     let caps = re.captures(line).unwrap();
     (
         (
@@ -23,6 +24,7 @@ fn parse_line(line: &str) -> ((u32, u32), (u32, u32)) {
             caps.get(4).unwrap().as_str().parse::<u32>().unwrap(),
         ),
     )
+    }
 }
 
 fn overlap_fully(elve_pair: ((u32, u32), (u32, u32))) -> bool {
@@ -57,8 +59,9 @@ fn main() {
     let args = Cli::from_args();
     let input = File::open(args.path.as_path()).unwrap();
     let lines = BufReader::new(input).lines();
+    let parser = parse_line();
     let overlap_count = lines
-        .map(|line| parse_line(&line.unwrap()))
+        .map(|line| parser(&line.unwrap()))
         .filter(|x| overlap_fully(*x))
         .count();
     println!("{}", overlap_count);
@@ -66,7 +69,7 @@ fn main() {
     let input = File::open(args.path.as_path()).unwrap();
     let lines = BufReader::new(input).lines();
     let overlap_at_all_count = lines
-        .map(|line| parse_line(&line.unwrap()))
+        .map(|line| parser(&line.unwrap()))
         .filter(|x| overlap_at_all(*x))
         .count();
     println!("{}", overlap_at_all_count);
