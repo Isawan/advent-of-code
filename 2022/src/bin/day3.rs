@@ -16,10 +16,10 @@ type Compartment<'a> = &'a str;
 
 fn priority(c: char) -> u32 {
     let ascii_code = c as u32;
-    if ascii_code >= 65 && ascii_code <= 90 {
+    if (65..=90).contains(&ascii_code) {
         // A-Z
         ascii_code - 65 + 27
-    } else if ascii_code >= 97 && ascii_code <= 122 {
+    } else if (97..=122).contains(&ascii_code) {
         // a-z
         ascii_code - 97 + 1
     } else {
@@ -27,7 +27,7 @@ fn priority(c: char) -> u32 {
     }
 }
 
-fn parse_line<'a>(line: &'a str) -> Rucksack<'a> {
+fn parse_line(line: &str) -> Rucksack {
     let len = line.len();
     ((&line[..len / 2]), (&line[len / 2..]))
 }
@@ -49,7 +49,7 @@ fn intersect(rucksack: Rucksack) -> char {
 }
 
 fn intersect_foldable(s1: BTreeSet<char>, s2: BTreeSet<char>) -> BTreeSet<char> {
-    s1.intersection(&s2).map(|x| *x).collect()
+    s1.intersection(&s2).copied().collect()
 }
 
 fn item_set(r: Rucksack) -> BTreeSet<char> {
@@ -82,10 +82,10 @@ fn main() {
             it.reduce(intersect_foldable)
                 .unwrap()
                 .iter()
-                .map(|x| priority(x.clone()))
-                .fold(0, |a, x| a + x)
+                .map(|x| priority(*x))
+                .sum::<u32>()
         })
-        .fold(0, |a, x| a + x);
+        .sum::<u32>();
     println!("{}", sum);
 }
 

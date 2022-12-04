@@ -59,7 +59,7 @@ fn main() {
     let lines = BufReader::new(input).lines();
     let overlap_count = lines
         .map(|line| parse_line(&line.unwrap()))
-        .filter(|x| overlap_fully(x.clone()))
+        .filter(|x| overlap_fully(*x))
         .count();
     println!("{}", overlap_count);
 
@@ -67,7 +67,7 @@ fn main() {
     let lines = BufReader::new(input).lines();
     let overlap_at_all_count = lines
         .map(|line| parse_line(&line.unwrap()))
-        .filter(|x| overlap_at_all(x.clone()))
+        .filter(|x| overlap_at_all(*x))
         .count();
     println!("{}", overlap_at_all_count);
 }

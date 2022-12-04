@@ -1,5 +1,3 @@
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -24,8 +22,9 @@ struct Line {
     mine: Shape,
 }
 
+#[allow(dead_code)]
 fn parse(line: &str) -> Line {
-    let mut split = line.split(" ");
+    let mut split = line.split(' ');
     Line {
         opponent: match split.next().unwrap() {
             "A" => Shape::Rock,
@@ -105,7 +104,7 @@ fn score(line: Line) -> usize {
 }
 
 fn parse_two(line: &str) -> Line { 
-    let mut split = line.split(" ");
+    let mut split = line.split(' ');
     let opponent = match split.next().unwrap() {
             "A" => Shape::Rock,
             "B" => Shape::Paper,
