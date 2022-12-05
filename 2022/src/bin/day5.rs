@@ -10,10 +10,7 @@ struct Cli {
 fn parse_stack(pic: &str) -> Vec<Vec<char>> {
     let re = Regex::new(r"(\[([A-Z])\]|\s\s\s)\s?").unwrap();
     let mut stacks = vec![];
-    for (line_count, line) in pic.lines().rev().enumerate() {
-        if line_count == 0 {
-            continue
-        }
+    for line in pic.lines().rev().skip(1) {
         for (num, cap) in re.captures_iter(line).enumerate() {
             // handle starting initialisation
             if num >= stacks.len() {
@@ -32,21 +29,24 @@ fn parse_stack(pic: &str) -> Vec<Vec<char>> {
     stacks
 }
 
-fn instruction_parser(instruction: &str) -> (usize,usize,usize) {
+fn instruction_parser() -> impl Fn(&str) -> (usize,usize,usize) {
     let re = Regex::new(r"move (\d+) from (\d+) to (\d+)").unwrap();
-    let cap = re.captures(instruction).unwrap();
-    (
-        cap.get(1).unwrap().as_str().parse::<usize>().unwrap(),
-        cap.get(2).unwrap().as_str().parse::<usize>().unwrap() - 1, // handle start-from-zero
-        cap.get(3).unwrap().as_str().parse::<usize>().unwrap() - 1, // handle start-from-zero
-    )
+    move |instruction| {
+        let cap = re.captures(instruction).unwrap();
+        (
+            cap.get(1).unwrap().as_str().parse::<usize>().unwrap(),
+            cap.get(2).unwrap().as_str().parse::<usize>().unwrap() - 1, // handle start-from-zero
+            cap.get(3).unwrap().as_str().parse::<usize>().unwrap() - 1, // handle start-from-zero
+        )
+    }
 }
 
 
 #[allow(dead_code)]
 fn perform_instructions<'a>(mut stacks: Vec<Vec<char>>, ins: &str) -> Vec<Vec<char>>{
+    let parse = instruction_parser();
     for line in ins.lines() {
-        let (mv, from, to) = instruction_parser(line);
+        let (mv, from, to) = parse(line);
         for _ in 0..mv {
             let tmp = stacks.get_mut(from).unwrap().pop().unwrap();
             stacks.get_mut(to).unwrap().push(tmp);
@@ -57,8 +57,9 @@ fn perform_instructions<'a>(mut stacks: Vec<Vec<char>>, ins: &str) -> Vec<Vec<ch
 
 fn stack_mover<'a>(mut stacks: Vec<Vec<char>>, ins: &str) -> Vec<Vec<char>> {
     let mut mover = vec![];
+    let parse = instruction_parser();
     for line in ins.lines() {
-        let (mv, from, to) = instruction_parser(line);
+        let (mv, from, to) = parse(line);
         for _ in 0..mv {
             let tmp = stacks.get_mut(from).unwrap().pop().unwrap();
             mover.push(tmp);
