@@ -12,67 +12,11 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-// struct Directory<'a> {
-//     dentries: BTreeMap<&'a str, Dentry>,
-// }
-//
-
 #[derive(Debug, Clone)]
 enum Dentry {
     File(usize),
     Directory,
 }
-
-// enum Cd<'a> {
-//     Down(&'a str),
-//     Up,
-// }
-//
-// enum Command<'a> {
-//     Cd(Cd<'a>),
-//     Ls,
-// }
-//
-// enum Line {
-//     Command(Command),
-//     File(File),
-//     Directory(Directory),
-// }
-//
-//
-// fn parse_line(line: &str) -> Line {
-//     let first_word = line.split(" ").next().unwrap();
-//     match first_word {
-//         "$" => Line::Command(),
-//         "dir" => Line::Directory(),
-//         _ => Line::File(),
-//     }
-// }
-//
-// fn parse_command(command: &'a str) -> Command  {
-//     let mut parts = line.split(" ");
-//     let first_word = parts.next().unwrap();
-//     match first_word {
-//         "ls" => Line::Command(Command::Ls),
-//         "cd" => Line::Directory(Command::Cd({
-//             let arg = parts.next().unwrap();
-//             match arg{
-//             }
-//         }}
-//     )),
-//         _ => panic!("Unsupported command {}", first_word),
-//     }
-// }
-
-// fn get_cwd(root: Directory, path: &mut Vec<&str>) -> &mut Directory {
-//     let mut dir = root;
-//     for name in path.iter() {
-//         dir = match dir.dentry.get(name).unwrap(){
-//             Dentry::Directory(d) => d,
-//             Dentry::File => panic!("unexpected file in path"),
-//         }
-//     }
-// }
 
 fn perform<'a>(
     tree: &mut BTreeMap<String, Dentry>,
@@ -124,9 +68,11 @@ fn perform<'a>(
             fullpath.push_str(&stack.join("/"));
             fullpath.push('/');
             fullpath.push_str(filename);
-            match tree.insert(fullpath, Dentry::Directory){
+            match tree.insert(fullpath, Dentry::Directory) {
                 None => (),
-                Some(_) => {panic!("not expecting object")}
+                Some(_) => {
+                    panic!("not expecting object")
+                }
             };
         }
         _ => {
@@ -139,25 +85,27 @@ fn perform<'a>(
             fullpath.push_str(&stack.join("/"));
             fullpath.push('/');
             fullpath.push_str(filename);
-            match tree.insert(fullpath, Dentry::File(size))  {
+            match tree.insert(fullpath, Dentry::File(size)) {
                 None => (),
-                Some(_) => {panic!("not expecting object")}
+                Some(_) => {
+                    panic!("not expecting object")
+                }
             };
         }
     }
-    println!("{}", line);
     Some(remaining)
 }
 
 fn find_dir_size(tree: &BTreeMap<String, Dentry>, dir: &str) -> usize {
+    let mut leading_dir = dir.to_owned();
+    leading_dir.push('/');
     tree.range(std::ops::RangeFrom {
-        start: dir.to_owned(),
+        start: leading_dir.clone(),
     })
-    .take_while(|(k, _)| k.starts_with(dir))
+    .take_while(|(k, _)| k.starts_with(&leading_dir))
     .fold(0, |a, (k, v)| {
-        
         a + match v {
-            Dentry::File(s) => {if (s == &65147){println!("test: {} {:?}", k, v)}; s},
+            Dentry::File(s) => s,
             Dentry::Directory => &0,
         }
     })
@@ -175,15 +123,33 @@ fn main() {
             None => break,
         };
     }
-    let mut directories = tree
+    let sum_dir = tree
         .iter()
         .filter_map(|(k, v)| match v {
-            Dentry::Directory => { Some(find_dir_size(&tree, k))},
-            Dentry::File(u) => {if (u == &65147){println!("test dir: {}", k)}; None},
+            Dentry::Directory => Some(find_dir_size(&tree, k)),
+            Dentry::File(u) => None,
         })
         .filter(|v| v <= &100000)
-        .collect::<Vec<usize>>();
-    println!("{:?}", directories.iter().sum::<usize>());
+        .sum::<usize>();
+
+    println!("sum: {:?}", sum_dir);
+
+    let used = find_dir_size(&tree, "");
+    let max = 70_000_000;
+    let free = max - used;
+    println!("free: {}", free);
+    let required_to_free = 30_000_000 - free;
+    println!("required: {}", required_to_free);
+    let best_pick = tree
+        .iter()
+        .filter_map(|(k, v)| match v {
+            Dentry::Directory => Some(find_dir_size(&tree, k)),
+            Dentry::File(u) => None,
+        })
+        .filter(|v| v >= &required_to_free)
+        .sorted()
+        .next().unwrap();
+    println!("best pick: {}", best_pick);
 }
 
 #[cfg(test)]
