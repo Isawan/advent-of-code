@@ -14,6 +14,19 @@ enum Dentry {
     Directory,
 }
 
+fn filepath(stack: &mut Vec<&str>, name: &str) -> String {
+    match stack.len() {
+        0 => "/".to_string(),
+        _ => {
+            let mut fullpath = "/".to_string();
+            fullpath.push_str(&stack.join("/"));
+            fullpath.push('/');
+            fullpath.push_str(name);
+            fullpath
+        }
+    }
+}
+
 fn perform<'a>(
     tree: &mut BTreeMap<String, Dentry>,
     stack: &mut Vec<&'a str>,
@@ -25,70 +38,30 @@ fn perform<'a>(
     };
     let (line, remaining) = remaining.split_at(pos);
     let (_, remaining) = remaining.split_at(1); // ignore leading newline
-    let mut parts = line.split(' ');
-    let first_word = parts.next().unwrap();
-    match first_word {
-        "$" => {
-            let command = parts.next().unwrap();
-            match command {
-                "cd" => {
-                    let arg = parts.next().unwrap();
-                    match arg {
-                        "/" => {
-                            stack.clear();
-                        }
-                        ".." => {
-                            stack.pop().unwrap();
-                        }
-                        name => {
-                            stack.push(name);
-                        }
-                    }
-                }
-                // handle in the next run, we will rely on the hack that
-                // only command that produces an output is ls so we don't need
-                // track state
-                "ls" => (),
-                _ => {
-                    panic!("unexpected command: {}", command)
-                }
-            }
+    let parts = line.split(' ').collect::<Vec<&str>>();
+    match parts.as_slice() {
+        ["$", "cd", "/"] => {
+            stack.clear();
         }
-        "dir" => {
-            let filename = parts.next().unwrap();
-            let mut fullpath = String::new();
-            if stack.len() != 0 {
-                fullpath.push('/');
-            }
-            fullpath.push_str(&stack.join("/"));
-            fullpath.push('/');
-            fullpath.push_str(filename);
-            match tree.insert(fullpath, Dentry::Directory) {
-                None => (),
-                Some(_) => {
-                    panic!("not expecting object")
-                }
-            };
+        ["$", "cd", ".."] => {
+            stack.pop();
         }
-        _ => {
-            let size = first_word.parse::<usize>().expect("Expected int");
-            let filename = parts.next().unwrap();
-            let mut fullpath = String::new();
-            if stack.len() != 0 {
-                fullpath.push('/');
-            }
-            fullpath.push_str(&stack.join("/"));
-            fullpath.push('/');
-            fullpath.push_str(filename);
-            match tree.insert(fullpath, Dentry::File(size)) {
-                None => (),
-                Some(_) => {
-                    panic!("not expecting object")
-                }
-            };
+        ["$", "cd", name] => {
+            stack.push(name);
         }
+        ["$", "ls"] => {}
+        ["dir", name] => {
+            tree.insert(filepath(stack, name), Dentry::Directory);
+        }
+        [size, name] => {
+            tree.insert(
+                filepath(stack, name),
+                Dentry::File(size.parse::<usize>().unwrap()),
+            );
+        }
+        _ => panic!("unexpected"),
     }
-    Some(remaining)
+    return Some(remaining);
 }
 
 fn find_dir_size(tree: &BTreeMap<String, Dentry>, dir: &str) -> usize {
@@ -132,9 +105,7 @@ fn main() {
     let used = find_dir_size(&tree, "");
     let max = 70_000_000;
     let free = max - used;
-    println!("free: {}", free);
     let required_to_free = 30_000_000 - free;
-    println!("required: {}", required_to_free);
     let best_pick = tree
         .iter()
         .filter_map(|(k, v)| match v {
