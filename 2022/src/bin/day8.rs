@@ -1,12 +1,6 @@
 use itertools::iproduct;
-use itertools::Itertools;
 use std::cmp::max;
-use std::collections::BTreeMap;
 use std::iter::zip;
-use std::ops::Bound::Excluded;
-use std::ops::Bound::Included;
-use std::ops::RangeBounds;
-use std::ops::RangeFrom;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -29,15 +23,6 @@ fn parse(input: &str) -> (Vec<u8>, (usize, usize)) {
     (result, (width, height))
 }
 
-fn print(grid: &Grid) {
-    for i in (0..grid.1 .0) {
-        for j in (0..grid.1 .1) {
-            print!("{}", get(&grid, i.into(), j.into()));
-        }
-        print!("\n");
-    }
-}
-
 fn get(grid: &Grid, x: usize, y: usize) -> u8 {
     grid.0[grid.1 .0 * y + x]
 }
@@ -55,40 +40,36 @@ fn visible(grid: &Grid) -> Grid {
     ];
     for y in 0..(grid.1 .1) {
         let mut tallest_tree = 0;
-        let mut visible = true;
         for x in 0..(grid.1 .0) {
             let v = get(grid, x, y);
-            visible = tallest_tree < v;
+            let visible = tallest_tree < v;
             tallest_tree = max(tallest_tree, v);
             set(&mut result[0], x, y, visible as u8);
         }
     }
     for y in 0..(grid.1 .1) {
         let mut tallest_tree = 0;
-        let mut visible = true;
         for x in (0..(grid.1 .0)).rev() {
             let v = get(grid, x, y);
-            visible = tallest_tree < v;
+            let visible = tallest_tree < v;
             tallest_tree = max(tallest_tree, v);
             set(&mut result[1], x, y, visible as u8);
         }
     }
-    for x in (0..(grid.1 .1)) {
+    for x in 0..(grid.1 .1) {
         let mut tallest_tree = 0;
-        let mut visible = true;
-        for y in (0..(grid.1 .0)) {
+        for y in 0..(grid.1 .0) {
             let v = get(grid, x, y);
-            visible = tallest_tree < v;
+            let visible = tallest_tree < v;
             tallest_tree = max(tallest_tree, v);
             set(&mut result[2], x, y, visible as u8);
         }
     }
-    for x in (0..(grid.1 .1)) {
+    for x in 0..(grid.1 .1) {
         let mut tallest_tree = 0;
-        let mut visible = true;
         for y in (0..(grid.1 .0)).rev() {
             let v = get(grid, x, y);
-            visible = tallest_tree < v;
+            let visible = tallest_tree < v;
             tallest_tree = max(tallest_tree, v);
             set(&mut result[3], x, y, visible as u8);
         }
@@ -120,7 +101,7 @@ fn scenic_score(grid: &Grid, x: usize, y: usize) -> usize {
         .fold((false, 0), |a, i| match (a.0, get(grid, i, y)) {
             (true, _) => a,
             (false, height) if height >= my_height => (true, a.1 + 1),
-            (false, height) => (false, a.1 + 1),
+            (false, _) => (false, a.1 + 1),
         })
         .1;
     // go left
@@ -130,7 +111,7 @@ fn scenic_score(grid: &Grid, x: usize, y: usize) -> usize {
         .fold((false, 0), |a, i| match (a.0, get(grid, i, y)) {
             (true, _) => a,
             (false, height) if height >= my_height => (true, a.1 + 1),
-            (false, height) => (false, a.1 + 1),
+            (false, _) => (false, a.1 + 1),
         })
         .1;
     // go down
@@ -139,7 +120,7 @@ fn scenic_score(grid: &Grid, x: usize, y: usize) -> usize {
         .fold((false, 0), |a, i| match (a.0, get(grid, x, i)) {
             (true, _) => a,
             (false, height) if height >= my_height => (true, a.1 + 1),
-            (false, height) => (false, a.1 + 1),
+            (false, _) => (false, a.1 + 1),
         })
         .1;
     // go up
@@ -149,7 +130,7 @@ fn scenic_score(grid: &Grid, x: usize, y: usize) -> usize {
         .fold((false, 0), |a, i| match (a.0, get(grid, x, i)) {
             (true, _) => a,
             (false, height) if height >= my_height => (true, a.1 + 1),
-            (false, height) => (false, a.1 + 1),
+            (false, _) => (false, a.1 + 1),
         })
         .1;
     up * down * left * right

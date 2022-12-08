@@ -1,9 +1,5 @@
 use itertools::Itertools;
 use std::collections::BTreeMap;
-use std::ops::Bound::Excluded;
-use std::ops::Bound::Included;
-use std::ops::RangeBounds;
-use std::ops::RangeFrom;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -23,7 +19,6 @@ fn perform<'a>(
     stack: &mut Vec<&'a str>,
     remaining: &'a str,
 ) -> Option<&'a str> {
-    let dir_size = 0;
     let pos = match remaining.find("\n") {
         Some(t) => t,
         None => return None,
@@ -103,7 +98,7 @@ fn find_dir_size(tree: &BTreeMap<String, Dentry>, dir: &str) -> usize {
         start: leading_dir.clone(),
     })
     .take_while(|(k, _)| k.starts_with(&leading_dir))
-    .fold(0, |a, (k, v)| {
+    .fold(0, |a, (_, v)| {
         a + match v {
             Dentry::File(s) => s,
             Dentry::Directory => &0,
@@ -127,7 +122,7 @@ fn main() {
         .iter()
         .filter_map(|(k, v)| match v {
             Dentry::Directory => Some(find_dir_size(&tree, k)),
-            Dentry::File(u) => None,
+            Dentry::File(_) => None,
         })
         .filter(|v| v <= &100000)
         .sum::<usize>();
@@ -144,7 +139,7 @@ fn main() {
         .iter()
         .filter_map(|(k, v)| match v {
             Dentry::Directory => Some(find_dir_size(&tree, k)),
-            Dentry::File(u) => None,
+            Dentry::File(_) => None,
         })
         .filter(|v| v >= &required_to_free)
         .sorted()
