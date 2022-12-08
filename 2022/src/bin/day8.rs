@@ -1,3 +1,4 @@
+use itertools::iproduct;
 use itertools::Itertools;
 use std::cmp::max;
 use std::collections::BTreeMap;
@@ -7,7 +8,6 @@ use std::ops::Bound::Included;
 use std::ops::RangeBounds;
 use std::ops::RangeFrom;
 use structopt::StructOpt;
-use itertools::iproduct;
 
 #[derive(StructOpt)]
 struct Cli {
@@ -117,47 +117,39 @@ fn scenic_score(grid: &Grid, x: usize, y: usize) -> usize {
     // go right
     let right = (x..grid.1 .0)
         .skip(1)
-        .fold((false, 0), |a, i| {
-            match (a.0, get(grid, i, y)) {
-                (true, _) => a,
-                (false, height) if height >= my_height=> (true, a.1 + 1),
-                (false, height) => (false, a.1 + 1),
-            }
+        .fold((false, 0), |a, i| match (a.0, get(grid, i, y)) {
+            (true, _) => a,
+            (false, height) if height >= my_height => (true, a.1 + 1),
+            (false, height) => (false, a.1 + 1),
         })
         .1;
     // go left
     let left = (0..=x)
         .rev()
         .skip(1)
-        .fold((false, 0), |a, i| {
-            match (a.0, get(grid, i, y)) {
-                (true, _) => a,
-                (false, height) if height >= my_height=> (true, a.1 + 1),
-                (false, height) => (false, a.1 + 1),
-            }
+        .fold((false, 0), |a, i| match (a.0, get(grid, i, y)) {
+            (true, _) => a,
+            (false, height) if height >= my_height => (true, a.1 + 1),
+            (false, height) => (false, a.1 + 1),
         })
         .1;
     // go down
     let down = (y..grid.1 .1)
         .skip(1)
-        .fold((false, 0), |a, i| {
-            match (a.0, get(grid, x, i)) {
-                (true, _) => a,
-                (false, height) if height >= my_height=> (true, a.1 + 1),
-                (false, height) => (false, a.1 + 1),
-            }
+        .fold((false, 0), |a, i| match (a.0, get(grid, x, i)) {
+            (true, _) => a,
+            (false, height) if height >= my_height => (true, a.1 + 1),
+            (false, height) => (false, a.1 + 1),
         })
         .1;
     // go up
     let up = (0..=y)
         .rev()
         .skip(1)
-        .fold((false, 0), |a, i| {
-            match (a.0, get(grid, x, i)) {
-                (true, _) => a,
-                (false, height) if height >= my_height=> (true, a.1 + 1),
-                (false, height) => (false, a.1 + 1),
-            }
+        .fold((false, 0), |a, i| match (a.0, get(grid, x, i)) {
+            (true, _) => a,
+            (false, height) if height >= my_height => (true, a.1 + 1),
+            (false, height) => (false, a.1 + 1),
         })
         .1;
     up * down * left * right
@@ -172,10 +164,10 @@ fn main() {
         "visible trees: {}",
         visibility.0.iter().filter(|x| **x == 1).count()
     );
-    let mut coords = iproduct!((0..grid.1.0), (0..grid.1.1)).collect::<Vec<(usize,usize)>>();
-    coords.sort_by_cached_key(|(j,i)| scenic_score(&grid, *j, *i));
-    let (x,y) = coords.iter().last().unwrap();
-    println!("x: {}, y: {}, score: {}", x,y,scenic_score(&grid,*x,*y));
+    let mut coords = iproduct!((0..grid.1 .0), (0..grid.1 .1)).collect::<Vec<(usize, usize)>>();
+    coords.sort_by_cached_key(|(j, i)| scenic_score(&grid, *j, *i));
+    let (x, y) = coords.iter().last().unwrap();
+    println!("x: {}, y: {}, score: {}", x, y, scenic_score(&grid, *x, *y));
 }
 
 #[cfg(test)]
