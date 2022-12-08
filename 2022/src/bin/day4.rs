@@ -13,17 +13,17 @@ struct Cli {
 fn parse_line() -> impl Fn(&str) -> ((u32, u32), (u32, u32)) {
     let re = Regex::new(r"^(\d+)-(\d+),(\d+)-(\d+)$").unwrap();
     move |line| {
-    let caps = re.captures(line).unwrap();
-    (
+        let caps = re.captures(line).unwrap();
         (
-            caps.get(1).unwrap().as_str().parse::<u32>().unwrap(),
-            caps.get(2).unwrap().as_str().parse::<u32>().unwrap(),
-        ),
-        (
-            caps.get(3).unwrap().as_str().parse::<u32>().unwrap(),
-            caps.get(4).unwrap().as_str().parse::<u32>().unwrap(),
-        ),
-    )
+            (
+                caps.get(1).unwrap().as_str().parse::<u32>().unwrap(),
+                caps.get(2).unwrap().as_str().parse::<u32>().unwrap(),
+            ),
+            (
+                caps.get(3).unwrap().as_str().parse::<u32>().unwrap(),
+                caps.get(4).unwrap().as_str().parse::<u32>().unwrap(),
+            ),
+        )
     }
 }
 

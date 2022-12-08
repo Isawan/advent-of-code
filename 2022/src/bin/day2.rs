@@ -103,14 +103,14 @@ fn score(line: Line) -> usize {
     outcome_score + shape_score
 }
 
-fn parse_two(line: &str) -> Line { 
+fn parse_two(line: &str) -> Line {
     let mut split = line.split(' ');
     let opponent = match split.next().unwrap() {
-            "A" => Shape::Rock,
-            "B" => Shape::Paper,
-            "C" => Shape::Scissor,
-            _ => panic!("Unexpected"),
-        };
+        "A" => Shape::Rock,
+        "B" => Shape::Paper,
+        "C" => Shape::Scissor,
+        _ => panic!("Unexpected"),
+    };
     let x = Line {
         opponent: opponent.clone(),
         mine: match split.next().unwrap() {
@@ -129,7 +129,9 @@ fn main() {
     let input = File::open(args.path.as_path()).unwrap();
     let lines = BufReader::new(input).lines();
     //let first_score = lines.map(|x| parse(&x.unwrap())).fold(0,|x,y| score(y)+x);
-    let second_score = lines.map(|x| parse_two(&x.unwrap())).fold(0,|x,y| score(y)+x);
+    let second_score = lines
+        .map(|x| parse_two(&x.unwrap()))
+        .fold(0, |x, y| score(y) + x);
     println!("{}", second_score);
 }
 

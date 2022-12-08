@@ -29,7 +29,7 @@ fn parse_stack(pic: &str) -> Vec<Vec<char>> {
     stacks
 }
 
-fn instruction_parser() -> impl Fn(&str) -> (usize,usize,usize) {
+fn instruction_parser() -> impl Fn(&str) -> (usize, usize, usize) {
     let re = Regex::new(r"move (\d+) from (\d+) to (\d+)").unwrap();
     move |instruction| {
         let cap = re.captures(instruction).unwrap();
@@ -41,9 +41,8 @@ fn instruction_parser() -> impl Fn(&str) -> (usize,usize,usize) {
     }
 }
 
-
 #[allow(dead_code)]
-fn perform_instructions<'a>(mut stacks: Vec<Vec<char>>, ins: &str) -> Vec<Vec<char>>{
+fn perform_instructions<'a>(mut stacks: Vec<Vec<char>>, ins: &str) -> Vec<Vec<char>> {
     let parse = instruction_parser();
     for line in ins.lines() {
         let (mv, from, to) = parse(line);
@@ -72,7 +71,7 @@ fn stack_mover<'a>(mut stacks: Vec<Vec<char>>, ins: &str) -> Vec<Vec<char>> {
     stacks
 }
 
-fn spell(stacks: Vec<Vec<char>>) -> String { 
+fn spell(stacks: Vec<Vec<char>>) -> String {
     let mut result = String::new();
     for stack in stacks {
         let item = stack.last().unwrap();
@@ -100,6 +99,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parser() {
-    }
+    fn test_parser() {}
 }

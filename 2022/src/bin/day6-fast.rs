@@ -1,7 +1,7 @@
 /// Experimental test to make it go faster using a bit mask
 use itertools::Itertools;
-use structopt::StructOpt;
 use std::time::Instant;
+use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Cli {
@@ -10,11 +10,11 @@ struct Cli {
 }
 
 fn ascii_letter_to_bitfield(c: u8) -> u32 {
-    return 1 << (c & 0b00011111)
+    return 1 << (c & 0b00011111);
 }
 
-fn unique_count(buffer: &[u8] ) -> u32 {
-    let mut result: u32 =  0;
+fn unique_count(buffer: &[u8]) -> u32 {
+    let mut result: u32 = 0;
     for byte in buffer.iter() {
         result = result | ascii_letter_to_bitfield(*byte);
     }
@@ -34,16 +34,18 @@ fn main() {
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
     for _ in (0..10000) {
+        let start_of_packet = get_start(&input, 4).unwrap();
+        // println!("Start of packet: {}", start_of_packet);
 
-    let start_of_packet = get_start(&input, 4).unwrap();
-    // println!("Start of packet: {}", start_of_packet);
-
-    let start_of_message = get_start(&input, 14).unwrap();
-    // println!("Start of message: {}", start_of_message);
-
+        let start_of_message = get_start(&input, 14).unwrap();
+        // println!("Start of message: {}", start_of_message);
     }
     let elapse = start_time.elapsed();
-    println!("start of message: {}s {}ms", elapse.as_secs(), elapse.subsec_millis());
+    println!(
+        "start of message: {}s {}ms",
+        elapse.as_secs(),
+        elapse.subsec_millis()
+    );
 }
 
 #[cfg(test)]

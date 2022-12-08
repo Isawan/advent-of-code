@@ -148,7 +148,8 @@ fn main() {
         })
         .filter(|v| v >= &required_to_free)
         .sorted()
-        .next().unwrap();
+        .next()
+        .unwrap();
     println!("best pick: {}", best_pick);
 }
 
