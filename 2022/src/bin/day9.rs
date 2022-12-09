@@ -1,6 +1,7 @@
 use itertools::iproduct;
 use std::cmp::max;
 use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::iter::zip;
 use structopt::StructOpt;
 
@@ -43,7 +44,7 @@ fn perform_general(knots: Vec<(i32, i32)>, dir: &str) -> Vec<(i32, i32)> {
         "L" => (knots[0].0 - 1, knots[0].1),
         _ => panic!("unexpected"),
     };
-    let mut new_rope = Vec::new();
+    let mut new_rope = Vec::with_capacity(40);
     new_rope.push(new_head);
     for tail in knots.iter().skip(1) {
         new_head = move_general(new_head, *tail);
@@ -53,7 +54,7 @@ fn perform_general(knots: Vec<(i32, i32)>, dir: &str) -> Vec<(i32, i32)> {
 }
 
 fn calc(lines: &str, snake_size: usize) -> usize {
-    let mut previous_tails = BTreeSet::new();
+    let mut previous_tails = HashSet::new();
     previous_tails.insert((0, 0));
     lines
         .lines()
