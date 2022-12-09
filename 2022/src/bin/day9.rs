@@ -16,71 +16,6 @@ struct Knots {
     tail: (i32, i32),
 }
 
-fn move_tail(knots: Knots) -> Knots {
-    let xdiff = knots.head.0 - knots.tail.0;
-    let ydiff = knots.head.1 - knots.tail.1;
-    Knots {
-        head: knots.head,
-        tail: (
-            knots.tail.0
-                + if xdiff.abs() > 1 || ydiff.abs() > 1 {
-                    xdiff.signum()
-                } else {
-                    0
-                },
-            knots.tail.1
-                + if xdiff.abs() > 1 || ydiff.abs() > 1 {
-                    ydiff.signum()
-                } else {
-                    0
-                },
-        ),
-    }
-}
-
-fn perform(knots: Knots, dir: &str) -> Knots {
-    let new_head = match dir {
-        "U" => (knots.head.0, knots.head.1 + 1),
-        "D" => (knots.head.0, knots.head.1 - 1),
-        "R" => (knots.head.0 + 1, knots.head.1),
-        "L" => (knots.head.0 - 1, knots.head.1),
-        _ => panic!("unexpected"),
-    };
-    move_tail(Knots {
-        head: new_head,
-        tail: knots.tail,
-    })
-}
-
-fn calc(lines: &str) -> usize {
-    lines
-        .lines()
-        .fold(
-            (
-                BTreeSet::new(),
-                Knots {
-                    head: (0, 0),
-                    tail: (0, 0),
-                },
-            ),
-            |(mut previous_tail_positions, mut current), line| {
-                let parts = line.split(" ").collect::<Vec<&str>>();
-                match parts.as_slice() {
-                    [direction, mut times] => {
-                        for _ in 0..(times.parse::<usize>().unwrap()) {
-                            current = perform(current, direction);
-                            previous_tail_positions.insert((current.tail));
-                        }
-                        (previous_tail_positions, current)
-                    }
-                    _ => panic!(""),
-                }
-            },
-        )
-        .0
-        .len()
-}
-
 fn move_general(head: (i32, i32), tail: (i32, i32)) -> (i32, i32) {
     let xdiff = head.0 - tail.0;
     let ydiff = head.1 - tail.1;
@@ -117,13 +52,13 @@ fn perform_general(knots: Vec<(i32, i32)>, dir: &str) -> Vec<(i32, i32)> {
     new_rope
 }
 
-fn calc2(lines: &str) -> usize {
+fn calc(lines: &str, snake_size: usize) -> usize {
     let mut previous_tails = BTreeSet::new();
     previous_tails.insert((0, 0));
     lines
         .lines()
         .fold(
-            (previous_tails, vec![(0, 0); 10]),
+            (previous_tails, vec![(0, 0); snake_size]),
             |(mut previous_tails, mut current), line| {
                 let parts = line.split(" ").collect::<Vec<&str>>();
                 match parts.as_slice() {
@@ -145,8 +80,8 @@ fn calc2(lines: &str) -> usize {
 fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
-    println!("{:?}", calc(&input));
-    println!("{:?}", calc2(&input));
+    println!("{:?}", calc(&input,2));
+    println!("{:?}", calc(&input,10));
 }
 
 #[cfg(test)]
@@ -154,53 +89,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_move_tail() {
-        assert_eq!(
-            move_tail(Knots {
-                head: (2, 0),
-                tail: (0, 0)
-            }),
-            Knots {
-                head: (2, 0),
-                tail: (1, 0)
-            }
-        );
-        assert_eq!(
-            move_tail(Knots {
-                head: (2, 2),
-                tail: (0, 0)
-            }),
-            Knots {
-                head: (2, 2),
-                tail: (1, 1)
-            }
-        );
-        assert_eq!(
-            move_tail(Knots {
-                head: (1, 0),
-                tail: (0, 0)
-            }),
-            Knots {
-                head: (1, 0),
-                tail: (0, 0)
-            }
-        );
-        assert_eq!(
-            move_tail(Knots {
-                head: (4, 2),
-                tail: (3, 0)
-            }),
-            Knots {
-                head: (4, 2),
-                tail: (4, 1)
-            }
-        );
-    }
-
-    #[test]
     fn test_case() {
         let input = include_str!("../../input/day9-test");
-        assert_eq!(calc(input), 13);
+        assert_eq!(calc(input, 2), 13);
     }
 
     #[test]
@@ -214,8 +105,16 @@ mod tests {
     #[test]
     fn test_case_general() {
         let input = include_str!("../../input/day9-test");
-        assert_eq!(calc2(input), 1);
+        assert_eq!(calc(input,10), 1);
         let input = include_str!("../../input/day9-test2");
-        assert_eq!(calc2(input), 36);
+        assert_eq!(calc(input,10), 36);
+    }
+
+    #[test]
+    fn test_solution() {
+        let input = include_str!("../../input/day9");
+        assert_eq!(calc(input,2), 6494);
+        let input = include_str!("../../input/day9");
+        assert_eq!(calc(input,10), 2691);
     }
 }
