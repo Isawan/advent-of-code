@@ -148,7 +148,7 @@ mod tests {
         );
         assert_eq!(stack.len(), 0);
 
-        let result = perform(&mut tree, &mut stack, result).unwrap();
+        let _result = perform(&mut tree, &mut stack, result).unwrap();
         assert_eq!(stack.len(), 0);
     }
 

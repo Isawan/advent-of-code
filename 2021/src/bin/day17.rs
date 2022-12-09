@@ -4,7 +4,7 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 struct Cli {
     //#[structopt(parse(from_os_str))]
-//path: std::path::PathBuf,
+    //path: std::path::PathBuf,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]

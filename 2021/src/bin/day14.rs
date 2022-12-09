@@ -136,7 +136,6 @@ fn main() {
 mod tests {
     use super::*;
     use std::iter::FromIterator;
-    use std::array::IntoIter;
 
     #[test]
     fn test_parse_rule() {
@@ -182,12 +181,8 @@ mod tests {
     fn test_build_counter() {
         let input = "NNCB";
         let state = Polymer::new(input);
-        let doublet_exp = BTreeMap::from_iter(IntoIter::new([
-            (['N', 'N'], 1),
-            (['N', 'C'], 1),
-            (['C', 'B'], 1),
-        ]));
-        let element_exp = BTreeMap::from_iter(IntoIter::new([('N', 2), ('C', 1), ('B', 1)]));
+        let doublet_exp = BTreeMap::from_iter([(['N', 'N'], 1), (['N', 'C'], 1), (['C', 'B'], 1)]);
+        let element_exp = BTreeMap::from_iter([('N', 2), ('C', 1), ('B', 1)]);
         assert_eq!(state.doublets, doublet_exp);
         assert_eq!(state.elements, element_exp);
     }
@@ -201,13 +196,15 @@ mod tests {
             out: 'B',
         };
         apply_rules(&[rule], &mut state);
-        let doublet_exp = BTreeMap::from_iter(IntoIter::new([
-            (['N', 'N'], 1),
-            (['N', 'B'], 1),
-            (['B', 'C'], 1),
-            (['C', 'B'], 1),
-        ]));
-        let element_exp = BTreeMap::from_iter(IntoIter::new([('N', 2), ('B', 2), ('C', 1)]));
+        let doublet_exp = BTreeMap::from_iter(
+            [
+                (['N', 'N'], 1),
+                (['N', 'B'], 1),
+                (['B', 'C'], 1),
+                (['C', 'B'], 1),
+            ],
+        );
+        let element_exp = BTreeMap::from_iter([('N', 2), ('B', 2), ('C', 1)]);
         assert_eq!(state.doublets, doublet_exp);
         assert_eq!(state.elements, element_exp);
     }

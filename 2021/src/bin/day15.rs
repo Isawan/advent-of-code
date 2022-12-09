@@ -1,4 +1,4 @@
-use std::array::IntoIter;
+
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -103,7 +103,7 @@ fn risk_search(grid: &Grid) -> Vec<((i32, i32), u32)> {
         if visited.contains(&state.pos) {
             continue;
         }
-        for (i, j) in IntoIter::new([(0, -1), (0, 1), (-1, 0), (1, 0)]) {
+        for (i, j) in [(0, -1), (0, 1), (-1, 0), (1, 0)]{
             let x = &state.pos.0 + &i;
             let y = &state.pos.1 + &j;
             if visited.contains(&(x, y)) {

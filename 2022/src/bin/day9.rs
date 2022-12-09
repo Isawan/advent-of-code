@@ -1,8 +1,8 @@
-use itertools::iproduct;
-use std::cmp::max;
-use std::collections::BTreeSet;
+
+
+
 use std::collections::HashSet;
-use std::iter::zip;
+
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -17,7 +17,7 @@ struct Knots {
     tail: (i32, i32),
 }
 
-fn move_general(head: (i32, i32), tail: (i32, i32)) -> (i32, i32) {
+fn move_tail(head: (i32, i32), tail: (i32, i32)) -> (i32, i32) {
     let xdiff = head.0 - tail.0;
     let ydiff = head.1 - tail.1;
     (
@@ -47,7 +47,7 @@ fn perform_general(knots: Vec<(i32, i32)>, dir: &str) -> Vec<(i32, i32)> {
     let mut new_rope = Vec::with_capacity(40);
     new_rope.push(new_head);
     for tail in knots.iter().skip(1) {
-        new_head = move_general(new_head, *tail);
+        new_head = move_tail(new_head, *tail);
         new_rope.push(new_head);
     }
     new_rope
@@ -63,7 +63,7 @@ fn calc(lines: &str, snake_size: usize) -> usize {
             |(mut previous_tails, mut current), line| {
                 let parts = line.split(" ").collect::<Vec<&str>>();
                 match parts.as_slice() {
-                    [direction, mut times] => {
+                    [direction, times] => {
                         for _ in 0..(times.parse::<usize>().unwrap()) {
                             current = perform_general(current, direction);
                             previous_tails.insert(*(current.last().unwrap()));
@@ -81,8 +81,12 @@ fn calc(lines: &str, snake_size: usize) -> usize {
 fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
-    println!("{:?}", calc(&input,2));
-    println!("{:?}", calc(&input,10));
+    for _i in 0..1000 {
+        calc(&input, 2);
+        calc(&input, 10);
+    }
+    println!("{:?}", calc(&input, 2));
+    println!("{:?}", calc(&input, 10));
 }
 
 #[cfg(test)]
@@ -97,25 +101,25 @@ mod tests {
 
     #[test]
     fn test_move_tail_general() {
-        assert_eq!(move_general((2, 0), (0, 0)), (1, 0));
-        assert_eq!(move_general((2, 2), (0, 0)), (1, 1));
-        assert_eq!(move_general((1, 0), (0, 0)), (0, 0));
-        assert_eq!(move_general((4, 2), (3, 0)), (4, 1));
+        assert_eq!(move_tail((2, 0), (0, 0)), (1, 0));
+        assert_eq!(move_tail((2, 2), (0, 0)), (1, 1));
+        assert_eq!(move_tail((1, 0), (0, 0)), (0, 0));
+        assert_eq!(move_tail((4, 2), (3, 0)), (4, 1));
     }
 
     #[test]
     fn test_case_general() {
         let input = include_str!("../../input/day9-test");
-        assert_eq!(calc(input,10), 1);
+        assert_eq!(calc(input, 10), 1);
         let input = include_str!("../../input/day9-test2");
-        assert_eq!(calc(input,10), 36);
+        assert_eq!(calc(input, 10), 36);
     }
 
     #[test]
     fn test_solution() {
         let input = include_str!("../../input/day9");
-        assert_eq!(calc(input,2), 6494);
+        assert_eq!(calc(input, 2), 6494);
         let input = include_str!("../../input/day9");
-        assert_eq!(calc(input,10), 2691);
+        assert_eq!(calc(input, 10), 2691);
     }
 }
