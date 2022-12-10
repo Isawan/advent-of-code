@@ -1,8 +1,4 @@
-
-
-
 use std::collections::HashSet;
-
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -81,10 +77,6 @@ fn calc(lines: &str, snake_size: usize) -> usize {
 fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
-    for _i in 0..1000 {
-        calc(&input, 2);
-        calc(&input, 10);
-    }
     println!("{:?}", calc(&input, 2));
     println!("{:?}", calc(&input, 10));
 }
