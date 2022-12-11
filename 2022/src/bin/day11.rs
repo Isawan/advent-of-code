@@ -18,16 +18,6 @@ struct Monkey {
 struct Item(usize);
 
 impl Monkey {
-    // fn eval(&self, right: i32) -> i32 {
-    //     match *self.operation {
-    //         [left, "+", _] => (left.parse::<i32>().unwrap() + right),
-    //         [left, "-", _] => (left.parse::<i32>().unwrap() - right),
-    //         [left, "*", _] => (left.parse::<i32>().unwrap() * right),
-    //         _ => {
-    //             panic!("unexpected");
-    //         }
-    //     }
-    // }
     fn modulo(&mut self, modulo: i64) {
         self.items = self.items.iter().map(|x| x % modulo).collect();
     }
@@ -102,6 +92,115 @@ fn monkey_business(mut monkeys: Vec<Monkey>, round: impl Fn(Vec<Monkey>) -> (Vec
     total_inspections.iter().take(2).fold(1, |a, x| a * x)
 }
 
+
+fn main() {
+    let start = Instant::now();
+    let args = Cli::from_args();
+    let input = std::fs::read_to_string(args.path.as_path()).unwrap();
+
+    println!("monkey business: {}", monkey_business(input_monkeys(),monkey_round, 20));
+    println!("monkey business: {}", monkey_business(input_monkeys(),worried_monkey_round, 10000));
+    println!("time: {}", start.elapsed().as_micros());
+}
+
+#[cfg(test)]
+mod tests {
+    use std::iter::Inspect;
+
+    use super::*;
+
+    #[test]
+    fn test_monkey_round() {
+        let monkeys = init_monkeys();
+        let (monkeys, _) = monkey_round(monkeys);
+        assert_eq!(monkeys[0].items, vec![20, 23, 27, 26]);
+        assert_eq!(monkeys[1].items, vec![2080, 25, 167, 207, 401, 1046]);
+        assert_eq!(monkeys[2].items, vec![]);
+        assert_eq!(monkeys[3].items, vec![]);
+    }
+
+    #[test]
+    fn multiple_monkey_rounds() {
+        let mut monkeys = init_monkeys();
+        let mut total_inspections = vec![0; monkeys.len()];
+        for i in 0..20 {
+            let round_inspections;
+            (monkeys, round_inspections) = monkey_round(monkeys);
+            total_inspections = zip(total_inspections, round_inspections)
+                .map(|(a, b)| a + b)
+                .collect();
+        }
+        assert_eq!(total_inspections[0], 101);
+        assert_eq!(total_inspections[1], 95);
+        assert_eq!(total_inspections[2], 7);
+        assert_eq!(total_inspections[3], 105);
+    }
+
+    #[test]
+    fn test_monkey_business() {
+        let monkey_business = monkey_business(init_monkeys(), monkey_round, 20);
+        assert_eq!(monkey_business, 10605);
+    }
+
+    #[test]
+    fn test_worried_monkey_business() {
+        let monkeys = init_monkeys();
+        let (_, round_inspection) = worried_monkey_round(monkeys);
+        assert_eq!(round_inspection[0], 2);
+        assert_eq!(round_inspection[1], 4);
+        assert_eq!(round_inspection[2], 3);
+        assert_eq!(round_inspection[3], 6);
+
+        let mut monkeys = init_monkeys();
+        let mut total_inspections = vec![0; monkeys.len()];
+        for i in 0..20 {
+            let round_inspections;
+            (monkeys, round_inspections) = worried_monkey_round(monkeys);
+            total_inspections = zip(total_inspections, round_inspections)
+                .map(|(a, b)| a + b)
+                .collect();
+        }
+        assert_eq!(total_inspections[0], 99);
+        assert_eq!(total_inspections[1], 97);
+        assert_eq!(total_inspections[2], 8);
+        assert_eq!(total_inspections[3], 103);
+    }
+
+    fn init_monkeys() -> Vec<Monkey> {
+        vec![
+            Monkey {
+                items: vec![79, 98],
+                operation: Box::new(|old| old * 19),
+                division_number: 23,
+                true_monkey_index: 2,
+                false_monkey_index: 3,
+            },
+            Monkey {
+                items: vec![54, 65, 75, 74],
+                operation: Box::new(|old| old + 6),
+                division_number: 19,
+                true_monkey_index: 2,
+                false_monkey_index: 0,
+            },
+            Monkey {
+                items: vec![79, 60, 97],
+                operation: Box::new(|old| old * old),
+                division_number: 13,
+                true_monkey_index: 1,
+                false_monkey_index: 3,
+            },
+            Monkey {
+                items: vec![74],
+                operation: Box::new(|old| old + 3),
+                division_number: 17,
+                true_monkey_index: 0,
+                false_monkey_index: 1,
+            },
+        ]
+    }
+
+}
+
 fn input_monkeys() -> Vec<Monkey> {
     vec![
         Monkey {
@@ -161,112 +260,4 @@ fn input_monkeys() -> Vec<Monkey> {
             false_monkey_index: 5,
         },
     ]
-}
-
-
-fn main() {
-    let start = Instant::now();
-    let args = Cli::from_args();
-    let input = std::fs::read_to_string(args.path.as_path()).unwrap();
-
-    println!("monkey business: {}", monkey_business(input_monkeys(),monkey_round, 20));
-    println!("monkey business: {}", monkey_business(input_monkeys(),worried_monkey_round, 10000));
-    println!("time: {}", start.elapsed().as_micros());
-}
-
-#[cfg(test)]
-mod tests {
-    use std::iter::Inspect;
-
-    use super::*;
-
-    fn init_monkeys() -> Vec<Monkey> {
-        vec![
-            Monkey {
-                items: vec![79, 98],
-                operation: Box::new(|old| old * 19),
-                division_number: 23,
-                true_monkey_index: 2,
-                false_monkey_index: 3,
-            },
-            Monkey {
-                items: vec![54, 65, 75, 74],
-                operation: Box::new(|old| old + 6),
-                division_number: 19,
-                true_monkey_index: 2,
-                false_monkey_index: 0,
-            },
-            Monkey {
-                items: vec![79, 60, 97],
-                operation: Box::new(|old| old * old),
-                division_number: 13,
-                true_monkey_index: 1,
-                false_monkey_index: 3,
-            },
-            Monkey {
-                items: vec![74],
-                operation: Box::new(|old| old + 3),
-                division_number: 17,
-                true_monkey_index: 0,
-                false_monkey_index: 1,
-            },
-        ]
-    }
-
-    #[test]
-    fn test_monkey_round() {
-        let monkeys = init_monkeys();
-        let (monkeys, _) = monkey_round(monkeys);
-        assert_eq!(monkeys[0].items, vec![20, 23, 27, 26]);
-        assert_eq!(monkeys[1].items, vec![2080, 25, 167, 207, 401, 1046]);
-        assert_eq!(monkeys[2].items, vec![]);
-        assert_eq!(monkeys[3].items, vec![]);
-    }
-
-    #[test]
-    fn multiple_monkey_rounds() {
-        let mut monkeys = init_monkeys();
-        let mut total_inspections = vec![0; monkeys.len()];
-        for i in 0..20 {
-            let round_inspections;
-            (monkeys, round_inspections) = monkey_round(monkeys);
-            total_inspections = zip(total_inspections, round_inspections)
-                .map(|(a, b)| a + b)
-                .collect();
-        }
-        assert_eq!(total_inspections[0], 101);
-        assert_eq!(total_inspections[1], 95);
-        assert_eq!(total_inspections[2], 7);
-        assert_eq!(total_inspections[3], 105);
-    }
-
-    #[test]
-    fn test_monkey_business() {
-        let monkey_business = monkey_business(init_monkeys(), monkey_round, 20);
-        assert_eq!(monkey_business, 10605);
-    }
-
-    #[test]
-    fn test_worried_monkey_business() {
-        let monkeys = init_monkeys();
-        let (_, round_inspection) = worried_monkey_round(monkeys);
-        assert_eq!(round_inspection[0], 2);
-        assert_eq!(round_inspection[1], 4);
-        assert_eq!(round_inspection[2], 3);
-        assert_eq!(round_inspection[3], 6);
-
-        let mut monkeys = init_monkeys();
-        let mut total_inspections = vec![0; monkeys.len()];
-        for i in 0..20 {
-            let round_inspections;
-            (monkeys, round_inspections) = worried_monkey_round(monkeys);
-            total_inspections = zip(total_inspections, round_inspections)
-                .map(|(a, b)| a + b)
-                .collect();
-        }
-        assert_eq!(total_inspections[0], 99);
-        assert_eq!(total_inspections[1], 97);
-        assert_eq!(total_inspections[2], 8);
-        assert_eq!(total_inspections[3], 103);
-    }
 }
