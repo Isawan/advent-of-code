@@ -90,7 +90,6 @@ fn monkey_business(
             .collect();
     }
     total_inspections.sort_by(|a, b| b.cmp(a));
-    println!("{:?}", total_inspections);
     total_inspections.iter().take(2).fold(1, |a, x| a * x)
 }
 
