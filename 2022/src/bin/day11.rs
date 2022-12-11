@@ -64,7 +64,7 @@ fn monkey_round(mut monkeys: Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>) {
 }
 fn worried_monkey_round(mut monkeys: Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>) {
     let mut inspection_count = vec![0; monkeys.len()];
-    let modulo = monkeys.iter().fold(1, |a,x| a * x.division_number);
+    let modulo = monkeys.iter().fold(1, |a, x| a * x.division_number);
     for i in 0..monkeys.len() {
         let monkey = &mut monkeys[i];
         monkey.inspect();
@@ -77,8 +77,11 @@ fn worried_monkey_round(mut monkeys: Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>) {
     (monkeys, inspection_count)
 }
 
-
-fn monkey_business(mut monkeys: Vec<Monkey>, round: impl Fn(Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>), rounds: u32) -> u64 {
+fn monkey_business(
+    mut monkeys: Vec<Monkey>,
+    round: impl Fn(Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>),
+    rounds: u32,
+) -> u64 {
     let mut total_inspections = vec![0; monkeys.len()];
     for i in 0..rounds {
         let round_inspections;
@@ -92,14 +95,19 @@ fn monkey_business(mut monkeys: Vec<Monkey>, round: impl Fn(Vec<Monkey>) -> (Vec
     total_inspections.iter().take(2).fold(1, |a, x| a * x)
 }
 
-
 fn main() {
     let start = Instant::now();
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
 
-    println!("monkey business: {}", monkey_business(input_monkeys(),monkey_round, 20));
-    println!("monkey business: {}", monkey_business(input_monkeys(),worried_monkey_round, 10000));
+    println!(
+        "monkey business: {}",
+        monkey_business(input_monkeys(), monkey_round, 20)
+    );
+    println!(
+        "monkey business: {}",
+        monkey_business(input_monkeys(), worried_monkey_round, 10000)
+    );
     println!("time: {}", start.elapsed().as_micros());
 }
 
@@ -198,7 +206,6 @@ mod tests {
             },
         ]
     }
-
 }
 
 fn input_monkeys() -> Vec<Monkey> {
