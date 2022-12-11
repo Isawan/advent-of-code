@@ -28,6 +28,9 @@ impl Monkey {
     //         }
     //     }
     // }
+    fn modulo(&mut self, modulo: i64) {
+        self.items = self.items.iter().map(|x| x % modulo).collect();
+    }
     fn inspect(&mut self) {
         self.items = self
             .items
@@ -69,12 +72,27 @@ fn monkey_round(mut monkeys: Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>) {
     }
     (monkeys, inspection_count)
 }
+fn worried_monkey_round(mut monkeys: Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>) {
+    let mut inspection_count = vec![0; monkeys.len()];
+    let modulo = monkeys.iter().fold(1, |a,x| a * x.division_number);
+    for i in 0..monkeys.len() {
+        let monkey = &mut monkeys[i];
+        monkey.inspect();
+        monkey.modulo(modulo);
+        for (index, item) in monkey.throw_items() {
+            inspection_count[i] = inspection_count[i] + 1;
+            monkeys[index].items.push(item)
+        }
+    }
+    (monkeys, inspection_count)
+}
 
-fn monkey_business(mut monkeys: Vec<Monkey>, rounds: u32) -> u64 {
+
+fn monkey_business(mut monkeys: Vec<Monkey>, round: impl Fn(Vec<Monkey>) -> (Vec<Monkey>, Vec<u64>), rounds: u32) -> u64 {
     let mut total_inspections = vec![0; monkeys.len()];
     for i in 0..rounds {
         let round_inspections;
-        (monkeys, round_inspections) = monkey_round(monkeys);
+        (monkeys, round_inspections) = round(monkeys);
         total_inspections = zip(total_inspections, round_inspections)
             .map(|(a, b)| a + b)
             .collect();
@@ -145,12 +163,14 @@ fn input_monkeys() -> Vec<Monkey> {
     ]
 }
 
+
 fn main() {
     let start = Instant::now();
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
 
-    println!("monkey business: {}", monkey_business(input_monkeys(), 20));
+    println!("monkey business: {}", monkey_business(input_monkeys(),monkey_round, 20));
+    println!("monkey business: {}", monkey_business(input_monkeys(),worried_monkey_round, 10000));
     println!("time: {}", start.elapsed().as_micros());
 }
 
@@ -196,7 +216,7 @@ mod tests {
     #[test]
     fn test_monkey_round() {
         let monkeys = init_monkeys();
-        let (monkeys, _) = monkey_round(monkeys, true);
+        let (monkeys, _) = monkey_round(monkeys);
         assert_eq!(monkeys[0].items, vec![20, 23, 27, 26]);
         assert_eq!(monkeys[1].items, vec![2080, 25, 167, 207, 401, 1046]);
         assert_eq!(monkeys[2].items, vec![]);
@@ -209,7 +229,7 @@ mod tests {
         let mut total_inspections = vec![0; monkeys.len()];
         for i in 0..20 {
             let round_inspections;
-            (monkeys, round_inspections) = monkey_round(monkeys, true);
+            (monkeys, round_inspections) = monkey_round(monkeys);
             total_inspections = zip(total_inspections, round_inspections)
                 .map(|(a, b)| a + b)
                 .collect();
@@ -222,7 +242,31 @@ mod tests {
 
     #[test]
     fn test_monkey_business() {
-        let monkey_business = monkey_business(init_monkeys(), true, 20);
+        let monkey_business = monkey_business(init_monkeys(), monkey_round, 20);
         assert_eq!(monkey_business, 10605);
+    }
+
+    #[test]
+    fn test_worried_monkey_business() {
+        let monkeys = init_monkeys();
+        let (_, round_inspection) = worried_monkey_round(monkeys);
+        assert_eq!(round_inspection[0], 2);
+        assert_eq!(round_inspection[1], 4);
+        assert_eq!(round_inspection[2], 3);
+        assert_eq!(round_inspection[3], 6);
+
+        let mut monkeys = init_monkeys();
+        let mut total_inspections = vec![0; monkeys.len()];
+        for i in 0..20 {
+            let round_inspections;
+            (monkeys, round_inspections) = worried_monkey_round(monkeys);
+            total_inspections = zip(total_inspections, round_inspections)
+                .map(|(a, b)| a + b)
+                .collect();
+        }
+        assert_eq!(total_inspections[0], 99);
+        assert_eq!(total_inspections[1], 97);
+        assert_eq!(total_inspections[2], 8);
+        assert_eq!(total_inspections[3], 103);
     }
 }
