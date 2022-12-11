@@ -15,7 +15,6 @@ struct Monkey {
     true_monkey_index: usize,
     false_monkey_index: usize,
 }
-struct Item(usize);
 
 impl Monkey {
     fn modulo(&mut self, modulo: i64) {
