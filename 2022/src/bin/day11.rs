@@ -31,8 +31,7 @@ impl Monkey {
         self.items = self.items.iter().map(|item| item / 3).collect();
     }
     fn throw_items(&mut self) -> Vec<(usize, i64)> {
-        let items_to_throw = self.items.drain(..).collect::<Vec<i64>>();
-        items_to_throw
+        let items_to_throw = self.items
             .iter()
             .map(|x| -> (usize, i64) {
                 (
@@ -44,7 +43,9 @@ impl Monkey {
                     *x,
                 )
             })
-            .collect()
+            .collect();
+        self.items.clear();
+        items_to_throw
     }
 }
 
@@ -82,7 +83,7 @@ fn monkey_business(
     rounds: u32,
 ) -> u64 {
     let mut total_inspections = vec![0; monkeys.len()];
-    for i in 0..rounds {
+    for _ in 0..rounds {
         let round_inspections;
         (monkeys, round_inspections) = round(monkeys);
         total_inspections = zip(total_inspections, round_inspections)
@@ -96,7 +97,7 @@ fn monkey_business(
 fn main() {
     let start = Instant::now();
     let args = Cli::from_args();
-    let input = std::fs::read_to_string(args.path.as_path()).unwrap();
+    let _ = std::fs::read_to_string(args.path.as_path()).unwrap();
 
     println!(
         "monkey business: {}",
