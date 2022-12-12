@@ -52,7 +52,7 @@ impl Grid {
                     *c
                 }
             }) // handle start and end position
-            .map(|c| c & 0b0011_1111) // ascii to number a=1, b=2, etc..
+            .map(|c| c & 0b0001_1111) // ascii to number a=1, b=2, etc..
             .collect();
         let grid = Grid {
             field,
@@ -92,32 +92,19 @@ fn move_pos(
     old_pos: (usize, usize),
     direction: (isize, isize),
 ) -> Option<((usize, usize), u8)> {
-    let old_value = grid.get(old_pos).expect("old position invalid");
-    let checked_add = |old: usize, dir: isize| {
-        if dir >= 0 {
-            old.checked_add(dir as usize)
+    let add = |old: usize, dir: isize| -> Option<usize> {
+        if dir.is_negative() {
+            old.checked_sub(dir.wrapping_abs() as usize)
         } else {
-            old.checked_sub((-dir) as usize)
+            old.checked_add(dir as usize)
         }
     };
 
-    match (
-        checked_add(old_pos.0, direction.0),
-        checked_add(old_pos.1, direction.1),
-    ) {
-        (Some(x), Some(y)) => {
-            if let Some(new_value) = grid.get((x, y)) {
-                if new_value - 1 <= old_value {
-                    Some(((x, y), new_value))
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
+    let old_value = grid.get(old_pos).expect("old position invalid");
+    add(old_pos.0, direction.0)
+        .zip(add(old_pos.1, direction.1))
+        .and_then(|p| grid.get(p).map(|new_value| (p, new_value)))
+        .filter(|(_, new_value)| new_value - 1 <= old_value)
 }
 
 fn search(grid: &Grid, start: (usize, usize), end: (usize, usize)) -> Option<StepCount> {
@@ -131,7 +118,7 @@ fn search(grid: &Grid, start: (usize, usize), end: (usize, usize)) -> Option<Ste
 
     loop {
         let (distance, pos) = candidates.pop()?;
-        let value = grid.get(pos).unwrap();350
+        let value = grid.get(pos).unwrap();
 
         if let Some((new_pos, new_value)) = move_pos(&grid, pos, (1, 0)) {
             if !previous_positions.contains(&new_pos) {
@@ -167,12 +154,14 @@ fn search(grid: &Grid, start: (usize, usize), end: (usize, usize)) -> Option<Ste
 
 fn search_lowest_exhaust(grid: &Grid, end: (usize, usize)) -> StepCount {
     let mut minimum_positions = Vec::new();
-    let minimum_value = grid.field.iter().fold(u8::MAX, |a,x| std::cmp::min(a, *x));
+    let minimum_value = grid.field.iter().fold(u8::MAX, |a, x| std::cmp::min(a, *x));
     println!("minimum: {}", minimum_value);
     for i in 0..grid.width {
         for j in 0..grid.height {
             if let Some(value) = grid.get((i, j)) {
-                if (i,j) == end {continue}
+                if (i, j) == end {
+                    continue;
+                }
                 if value == minimum_value {
                     minimum_positions.push((i, j));
                 }
@@ -259,6 +248,16 @@ mod tests {
         let input = include_str!("../../input/day12-test");
         let (grid, start, end) = Grid::parse(input);
         assert_eq!(search(&grid, start, end), Some(31));
+    }
+
+    #[test]
+    fn test_move() {
+        let input = include_str!("../../input/day12-test");
+        let (grid, start, end) = Grid::parse(input);
+        assert_eq!(move_pos(&grid, (0, 2), (0, 1)), Some(((0, 3), 1)));
+        assert_eq!(move_pos(&grid, (0, 2), (-1, 0)), None);
+        assert_eq!(move_pos(&grid, (2, 2), (0, 1)), Some(((2, 3), 3)));
+        assert_eq!(move_pos(&grid, (2, 3), (1, 0)), None);
     }
 
     #[test]
