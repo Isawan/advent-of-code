@@ -30,12 +30,11 @@ impl Grid {
         }
         Some(self.field[self.width * pos.1 + pos.0])
     }
+
     fn index_to_position(&self, i: usize) -> (usize, usize) {
         (i % self.width, i / self.width)
     }
-    //fn set(grid: &mut Self, x: usize, y: usize, v: u8) {
-    //    grid.field[grid.width * y + x] = v
-    //}
+
     fn parse(input: &str) -> (Self, Start, End) {
         let height = input.lines().count();
         let width = input.find('\n').unwrap();
@@ -132,7 +131,7 @@ fn search(grid: &Grid, start: (usize, usize), end: (usize, usize)) -> Option<Ste
 
     loop {
         let (distance, pos) = candidates.pop()?;
-        let value = grid.get(pos).unwrap();
+        let value = grid.get(pos).unwrap();350
 
         if let Some((new_pos, new_value)) = move_pos(&grid, pos, (1, 0)) {
             if !previous_positions.contains(&new_pos) {
@@ -259,7 +258,7 @@ mod tests {
     fn test_search() {
         let input = include_str!("../../input/day12-test");
         let (grid, start, end) = Grid::parse(input);
-        assert_eq!(search(&grid, start, end), 31);
+        assert_eq!(search(&grid, start, end), Some(31));
     }
 
     #[test]
