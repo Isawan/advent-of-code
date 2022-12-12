@@ -31,7 +31,8 @@ impl Monkey {
         self.items = self.items.iter().map(|item| item / 3).collect();
     }
     fn throw_items(&mut self) -> Vec<(usize, i64)> {
-        let items_to_throw = self.items
+        let items_to_throw = self
+            .items
             .iter()
             .map(|x| -> (usize, i64) {
                 (
