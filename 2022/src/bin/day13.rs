@@ -1,6 +1,4 @@
-use lazy_static::lazy_static;
-use nom::{self, IResult};
-use regex::Regex;
+use nom::{self};
 use std::cmp::Ordering;
 use std::rc::Rc;
 use std::time::Instant;
@@ -79,14 +77,6 @@ fn cmp(left: &Packet, right: &Packet) -> Ordering {
     }
 }
 
-fn parser(input: &str) -> (Packet, &str) {
-    if let Result::Ok((i, output)) = packet(input) {
-        return (output, i);
-    } else {
-        panic!("parse error");
-    }
-}
-
 fn compare_all(input: &str) -> u32 {
     let mut lines = input.lines();
     let mut ordered_pair = vec![];
@@ -94,8 +84,8 @@ fn compare_all(input: &str) -> u32 {
     loop {
         let first_line = lines.next().expect("expected first line");
         let second_line = lines.next().expect("expected second line");
-        let (first, _) = parser(first_line);
-        let (second, _) = parser(second_line);
+        let (_, first) = packet(first_line).unwrap();
+        let (_, second) = packet(second_line).unwrap();
         i = i + 1;
 
         match cmp(&first, &second) {
@@ -115,9 +105,9 @@ fn sort_all(input: &str) -> Vec<Packet> {
     let mut packets = input
         .lines()
         .filter(|line| line != &"")
-        .map(|line| parser(line).0)
+        .map(|line| packet(line).unwrap().1)
         .collect::<Vec<Packet>>();
-    let mut markers = vec![parser("[[2]]").0, parser("[[6]]").0];
+    let mut markers = vec![packet("[[2]]").unwrap().1, packet("[[6]]").unwrap().1];
     packets.append(&mut markers);
     packets.sort();
     packets
@@ -127,11 +117,11 @@ fn find_markers(sorted_output: &Vec<Packet>) -> (Option<usize>, Option<usize>) {
     (
         sorted_output
             .iter()
-            .position(|x| *x == parser("[[2]]").0)
+            .position(|x| *x == packet("[[2]]").unwrap().1)
             .map(|x| x + 1),
         sorted_output
             .iter()
-            .position(|x| *x == parser("[[6]]").0)
+            .position(|x| *x == packet("[[6]]").unwrap().1)
             .map(|x| x + 1),
     )
 }
@@ -174,30 +164,40 @@ mod tests {
     #[test]
     fn test_compare_example() {
         assert_eq!(
-            cmp(&parser("[[1],[2,3,4]]").0, &parser("[[1],4]").0),
+            cmp(
+                &packet("[[1],[2,3,4]]").unwrap().1,
+                &packet("[[1],4]").unwrap().1
+            ),
             Ordering::Less
         );
         assert_eq!(
-            cmp(&parser("[[1],[]]").0, &parser("[[1],4]").0),
+            cmp(
+                &packet("[[1],[]]").unwrap().1,
+                &packet("[[1],4]").unwrap().1
+            ),
             Ordering::Less
         );
         assert_eq!(
-            cmp(&parser("[[10],[]]").0, &parser("[[11],4]").0),
+            cmp(
+                &packet("[[10],[]]").unwrap().1,
+                &packet("[[11],4]").unwrap().1
+            ),
             Ordering::Less
         );
     }
 
     #[test]
     fn test_parser() {
-        assert_eq!(parser("1000"), (Packet::Number(1000), ""));
-        assert_eq!(parser("[]"), (Packet::List(vec![]), ""));
+        assert_eq!(packet("1000"), Ok(("", Packet::Number(1000))));
+        assert_eq!(packet("[]"), Ok(("", 1acket::List(vec![]))));
         assert_eq!(
-            parser("[1000]"),
-            (Packet::List(vec![Rc::new(Packet::Number(1000))]), "")
+            packet("[1000]"),
+            Ok(("", Packet::List(vec![Rc::new(Packet::Number(1000))])))
         );
         assert_eq!(
-            parser("[[1],[2,3,4]]"),
-            (
+            packet("[[1],[2,3,4]]"),
+            Ok((
+                "",
                 Packet::List(vec![
                     Rc::new(Packet::List(vec![Rc::new(Packet::Number(1))])),
                     Rc::new(Packet::List(vec![
@@ -205,22 +205,21 @@ mod tests {
                         Rc::new(Packet::Number(3)),
                         Rc::new(Packet::Number(4)),
                     ]))
-                ]),
-                ""
-            )
+                ])
+            ))
         );
         assert_eq!(
-            parser("[[1],[[],[]]]"),
-            (
+            packet("[[1],[[],[]]]"),
+            Ok((
+                "",
                 Packet::List(vec![
                     Rc::new(Packet::List(vec![Rc::new(Packet::Number(1))])),
                     Rc::new(Packet::List(vec![
                         Rc::new(Packet::List(vec![])),
                         Rc::new(Packet::List(vec![]))
                     ]))
-                ]),
-                ""
-            )
+                ])
+            ))
         );
     }
 
@@ -236,7 +235,7 @@ mod tests {
         let exp_output_string = include_str!("../../input/day13-test-output");
         let exp_output = exp_output_string
             .lines()
-            .map(|line| parser(line).0)
+            .map(|line| packet(line).unwrap().1)
             .collect::<Vec<Packet>>();
         let output = sort_all(input);
         assert_eq!(output, exp_output);

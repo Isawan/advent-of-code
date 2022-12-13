@@ -1,1 +1,4 @@
 */target
+**/.vscode
+perf.data
+perf.data.old
