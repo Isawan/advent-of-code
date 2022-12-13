@@ -91,7 +91,7 @@ fn add(old: usize, dir: isize) -> Option<usize> {
     }
 }
 
-fn move_pos(
+fn climb_up(
     grid: &Grid,
     old_pos: (usize, usize),
     direction: (isize, isize),
@@ -182,7 +182,7 @@ fn main() {
     println!("width: {}, height: {}", grid.width, grid.height);
     println!(
         "found S: {:?}",
-        search(&grid, start_pos, move_pos, end_at(end_pos)).expect("no path found")
+        search(&grid, start_pos, climb_up, end_at(end_pos)).expect("no path found")
     );
     println!(
         "found a: {:?}",
@@ -208,17 +208,17 @@ mod tests {
     fn test_search() {
         let input = include_str!("../../input/day12-test");
         let (grid, start, end) = Grid::parse(input);
-        assert_eq!(search(&grid, start, move_pos, end_at(end)), Some(31));
+        assert_eq!(search(&grid, start, climb_up, end_at(end)), Some(31));
     }
 
     #[test]
     fn test_move() {
         let input = include_str!("../../input/day12-test");
         let (grid, start, end) = Grid::parse(input);
-        assert_eq!(move_pos(&grid, (0, 2), (0, 1)), Some((0, 3)));
-        assert_eq!(move_pos(&grid, (0, 2), (-1, 0)), None);
-        assert_eq!(move_pos(&grid, (2, 2), (0, 1)), Some((2, 3)));
-        assert_eq!(move_pos(&grid, (2, 3), (1, 0)), None);
+        assert_eq!(climb_up(&grid, (0, 2), (0, 1)), Some((0, 3)));
+        assert_eq!(climb_up(&grid, (0, 2), (-1, 0)), None);
+        assert_eq!(climb_up(&grid, (2, 2), (0, 1)), Some((2, 3)));
+        assert_eq!(climb_up(&grid, (2, 3), (1, 0)), None);
     }
 
     #[test]
