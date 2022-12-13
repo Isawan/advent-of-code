@@ -1,17 +1,9 @@
+use lazy_static::lazy_static;
 use regex::Regex;
-use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::rc::Rc;
 use std::time::Instant;
 use structopt::StructOpt;
-
-// fn parse_bracket(s: &str) -> Packet {
-//     delimited(
-//         char('['),
-//         seperated_list0(character::complete::char(','), nom::number::complete::u32),
-//         char(']'),
-//     )
-// }
 
 #[derive(StructOpt)]
 struct Cli {
@@ -37,8 +29,8 @@ fn cmp_list(left: &Vec<Rc<Packet>>, right: &Vec<Rc<Packet>>) -> Ordering {
     loop {
         match (left_iter.next(), right_iter.next()) {
             (None, None) => return Ordering::Equal, // TODO: figure out matching
-            (None, Some(r)) => return Ordering::Less,
-            (Some(l), None) => return Ordering::Greater,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
             (Some(l), Some(r)) => {
                 let y = cmp(l, r);
                 match y {
@@ -68,8 +60,10 @@ fn cmp(left: &Packet, right: &Packet) -> Ordering {
 }
 
 fn parse_number(input: &str) -> Option<(Packet, &str)> {
-    let re = Regex::new("^[0-9]+").unwrap();
-    if let Some(number) = re.captures(input) {
+    lazy_static! {
+        static ref RE: Regex = Regex::new("^[0-9]+").unwrap();
+    }
+    if let Some(number) = RE.captures(input) {
         (Some((
             Packet::Number(number[0].parse::<u32>().unwrap()),
             &input[number[0].len()..],
@@ -107,7 +101,7 @@ fn parse_list(mut input: &str) -> (Packet, &str) {
     }
 }
 
-fn parser(mut input: &str) -> (Packet, &str) {
+fn parser(input: &str) -> (Packet, &str) {
     if let Some((number, input)) = parse_number(input) {
         (number, input)
     } else {
