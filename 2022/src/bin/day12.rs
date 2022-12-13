@@ -113,7 +113,7 @@ fn climb_down(
     add(old_pos.0, direction.0)
         .zip(add(old_pos.1, direction.1))
         .and_then(|p| grid.get(p).map(|new_value| (p, new_value)))
-        .filter(|(_, new_value)| *new_value >= old_value || (*new_value == old_value - 1))
+        .filter(|(_, new_value)| old_value - 1 <= *new_value)
         .map(|x| x.0)
 }
 
