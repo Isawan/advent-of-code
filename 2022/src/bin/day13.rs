@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn test_parser() {
         assert_eq!(packet("1000"), Ok(("", Packet::Number(1000))));
-        assert_eq!(packet("[]"), Ok(("", 1acket::List(vec![]))));
+        assert_eq!(packet("[]"), Ok(("", Packet::List(vec![]))));
         assert_eq!(
             packet("[1000]"),
             Ok(("", Packet::List(vec![Rc::new(Packet::Number(1000))])))
