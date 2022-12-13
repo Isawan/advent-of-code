@@ -79,53 +79,11 @@ fn cmp(left: &Packet, right: &Packet) -> Ordering {
     }
 }
 
-fn parse_number(input: &str) -> Option<(Packet, &str)> {
-    lazy_static! {
-        static ref RE: Regex = Regex::new("^[0-9]+").unwrap();
-    }
-    if let Some(number) = RE.captures(input) {
-        (Some((
-            Packet::Number(number[0].parse::<u32>().unwrap()),
-            &input[number[0].len()..],
-        )))
-    } else {
-        None
-    }
-}
-fn parse_list(mut input: &str) -> (Packet, &str) {
-    let mut packet;
-    let mut packets = vec![];
-    input = &input[1..];
-    loop {
-        match input.chars().nth(0) {
-            Some(',') => {
-                input = &input[1..]; // skip the comma
-                (packet, input) = parser(&input);
-                packets.push(Rc::new(packet));
-            }
-            Some('[') => {
-                let inner;
-                (inner, input) = parser(input);
-                packets.push(Rc::new(inner));
-            }
-            Some(']') => {
-                input = &input[1..];
-                return (Packet::List(packets), input);
-            }
-            Some(_) => {
-                (packet, input) = parser(&input);
-                packets.push(Rc::new(packet));
-            }
-            None => panic!("end of list"),
-        }
-    }
-}
-
 fn parser(input: &str) -> (Packet, &str) {
-    if let Some((number, input)) = parse_number(input) {
-        (number, input)
+    if let Result::Ok((i, output)) = packet(input) {
+        return (output, i);
     } else {
-        parse_list(input)
+        panic!("parse error");
     }
 }
 
