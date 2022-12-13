@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use nom::{self, IResult};
 use regex::Regex;
 use std::cmp::Ordering;
 use std::rc::Rc;
@@ -15,6 +16,25 @@ struct Cli {
 enum Packet {
     Number(u32),
     List(Vec<Rc<Packet>>),
+}
+
+fn packet(input: &str) -> nom::IResult<&str, Packet> {
+    nom::branch::alt((
+        nom::sequence::delimited(
+            nom::character::complete::char('['),
+            nom::combinator::map(
+                nom::multi::separated_list0(nom::character::complete::char(','), |p| {
+                    packet(p).map(|(a, b)| (a, Rc::new(b)))
+                }),
+                Packet::List,
+            ),
+            nom::character::complete::char(']'),
+        ),
+        nom::combinator::map_res(
+            nom::character::complete::digit1,
+            |n: &str| -> Result<Packet, _> { n.parse::<u32>().map(Packet::Number) },
+        ),
+    ))(input)
 }
 
 impl PartialOrd for Packet {
