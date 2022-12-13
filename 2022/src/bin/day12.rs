@@ -1,6 +1,6 @@
 use std::cmp::Reverse;
-use std::collections::BTreeSet;
-use std::collections::BinaryHeap;
+use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -65,7 +65,7 @@ impl Grid {
                 .as_str()
                 .chars()
                 .enumerate()
-                .find(|(i, c)| *c == 'S')
+                .find(|(_, c)| *c == 'S')
                 .map(|(i, _)| i)
                 .unwrap(),
         );
@@ -75,7 +75,7 @@ impl Grid {
                 .as_str()
                 .chars()
                 .enumerate()
-                .find(|(i, c)| *c == 'E')
+                .find(|(_, c)| *c == 'E')
                 .map(|(i, _)| i)
                 .unwrap(),
         );
@@ -83,150 +83,111 @@ impl Grid {
     }
 }
 
-fn search_space() -> &'static [(isize, isize)] {
-    &[(1, 0), (0, 1), (-1, 0), (0, -1)]
+fn add(old: usize, dir: isize) -> Option<usize> {
+    if dir.is_negative() {
+        old.checked_sub(dir.wrapping_abs() as usize)
+    } else {
+        old.checked_add(dir as usize)
+    }
 }
 
 fn move_pos(
     grid: &Grid,
     old_pos: (usize, usize),
     direction: (isize, isize),
-) -> Option<((usize, usize), u8)> {
-    let add = |old: usize, dir: isize| -> Option<usize> {
-        if dir.is_negative() {
-            old.checked_sub(dir.wrapping_abs() as usize)
-        } else {
-            old.checked_add(dir as usize)
-        }
-    };
-
+) -> Option<(usize, usize)> {
     let old_value = grid.get(old_pos).expect("old position invalid");
     add(old_pos.0, direction.0)
         .zip(add(old_pos.1, direction.1))
         .and_then(|p| grid.get(p).map(|new_value| (p, new_value)))
         .filter(|(_, new_value)| new_value - 1 <= old_value)
+        .map(|x| x.0)
 }
 
-fn search(grid: &Grid, start: (usize, usize), end: (usize, usize)) -> Option<StepCount> {
-    let mut candidates = BinaryHeap::new();
-    let mut previous_positions = BTreeSet::new();
-    let mut distance = 0;
-    let value = grid.get(start).expect("start position not on the board?");
-    let minimum_distance;
-    candidates.push((Reverse(distance), start));
+fn climb_down(
+    grid: &Grid,
+    old_pos: (usize, usize),
+    direction: (isize, isize),
+) -> Option<(usize, usize)> {
+    let old_value = grid.get(old_pos).expect("old position invalid");
+    add(old_pos.0, direction.0)
+        .zip(add(old_pos.1, direction.1))
+        .and_then(|p| grid.get(p).map(|new_value| (p, new_value)))
+        .filter(|(_, new_value)| *new_value >= old_value || (*new_value == old_value - 1))
+        .map(|x| x.0)
+}
+
+fn end_at(end_pos: (usize, usize)) -> impl Fn(&Grid, (usize, usize)) -> bool {
+    move |_, x| end_pos == x
+}
+
+fn end_when_meet(c: u8) -> impl Fn(&Grid, (usize, usize)) -> bool {
+    move |grid, p| {
+        let v = grid.get(p).expect("expected real");
+        v == c
+    }
+}
+
+fn search(
+    grid: &Grid,
+    start: (usize, usize),
+    valid_move: impl Fn(&Grid, (usize, usize), (isize, isize)) -> Option<(usize, usize)>,
+    end_condition: impl Fn(&Grid, (usize, usize)) -> bool,
+) -> Option<StepCount> {
+    let mut candidates = VecDeque::new();
+    let mut previous_positions = HashSet::new();
+    let distance = 0;
+    candidates.push_back((Reverse(distance), start));
     previous_positions.insert(start);
 
     loop {
-        let (distance, pos) = candidates.pop()?;
-        let value = grid.get(pos).unwrap();
+        let (Reverse(distance), pos) = candidates.pop_front()?;
 
-        if let Some((new_pos, new_value)) = move_pos(&grid, pos, (1, 0)) {
+        if let Some(new_pos) = valid_move(&grid, pos, (1, 0)) {
             if !previous_positions.contains(&new_pos) {
                 previous_positions.insert(new_pos);
-                candidates.push((Reverse(distance.0 + 1), new_pos));
+                candidates.push_back((Reverse(distance + 1), new_pos));
             }
         }
-        if let Some((new_pos, new_value)) = move_pos(&grid, pos, (0, 1)) {
+        if let Some(new_pos) = valid_move(&grid, pos, (0, 1)) {
             if !previous_positions.contains(&new_pos) {
                 previous_positions.insert(new_pos);
-                candidates.push((Reverse(distance.0 + 1), new_pos));
+                candidates.push_back((Reverse(distance + 1), new_pos));
             }
         }
-        if let Some((new_pos, new_value)) = move_pos(&grid, pos, (-1, 0)) {
+        if let Some(new_pos) = valid_move(&grid, pos, (-1, 0)) {
             if !previous_positions.contains(&new_pos) {
                 previous_positions.insert(new_pos);
-                candidates.push((Reverse(distance.0 + 1), new_pos));
+                candidates.push_back((Reverse(distance + 1), new_pos));
             }
         }
-        if let Some((new_pos, new_value)) = move_pos(&grid, pos, (0, -1)) {
+        if let Some(new_pos) = valid_move(&grid, pos, (0, -1)) {
             if !previous_positions.contains(&new_pos) {
                 previous_positions.insert(new_pos);
-                candidates.push((Reverse(distance.0 + 1), new_pos));
+                candidates.push_back((Reverse(distance + 1), new_pos));
             }
         }
-        if pos == end {
-            minimum_distance = distance.0;
-            break;
+
+        if end_condition(grid, pos) {
+            return Some(distance);
         }
     }
-    Some(minimum_distance)
 }
-
-fn search_lowest_exhaust(grid: &Grid, end: (usize, usize)) -> StepCount {
-    let mut minimum_positions = Vec::new();
-    let minimum_value = grid.field.iter().fold(u8::MAX, |a, x| std::cmp::min(a, *x));
-    println!("minimum: {}", minimum_value);
-    for i in 0..grid.width {
-        for j in 0..grid.height {
-            if let Some(value) = grid.get((i, j)) {
-                if (i, j) == end {
-                    continue;
-                }
-                if value == minimum_value {
-                    minimum_positions.push((i, j));
-                }
-            }
-        }
-    }
-    minimum_positions
-        .iter()
-        .filter_map(|pos| search(&grid, *pos, end))
-        .fold(u32::MAX, std::cmp::min)
-}
-
-// fn search_lowest(grid: Grid, start: (usize, usize)) -> StepCount {
-//     let mut candidates = BinaryHeap::new();
-//     let mut previous_positions = BTreeSet::new();
-//     let mut distance = 0;
-//     let value = grid.get(start).expect("start position not on the board?");
-//     let minimum_distance;
-//     candidates.push((Reverse(distance), start));
-//     previous_positions.insert(start);
-//
-//     loop {
-//         let (distance, pos) = candidates.pop().expect("exhausted search");
-//         println!("{:?}", pos);
-//         let value = grid.get(pos).unwrap();
-//
-//         if let Some((new_pos, new_value)) = move_down_pos(&grid, pos, (1, 0)) {
-//             if !previous_positions.contains(&new_pos) {
-//                 previous_positions.insert(new_pos);
-//                 candidates.push((Reverse(distance.0 + 1), new_pos));
-//             }
-//         }
-//         if let Some((new_pos, new_value)) = move_down_pos(&grid, pos, (0, 1)) {
-//             if !previous_positions.contains(&new_pos) {
-//                 previous_positions.insert(new_pos);
-//                 candidates.push((Reverse(distance.0 + 1), new_pos));
-//             }
-//         }
-//         if let Some((new_pos, new_value)) = move_down_pos(&grid, pos, (-1, 0)) {
-//             if !previous_positions.contains(&new_pos) {
-//                 previous_positions.insert(new_pos);
-//                 candidates.push((Reverse(distance.0 + 1), new_pos));
-//             }
-//         }
-//         if let Some((new_pos, new_value)) = move_down_pos(&grid, pos, (0, -1)) {
-//             if !previous_positions.contains(&new_pos) {
-//                 previous_positions.insert(new_pos);
-//                 candidates.push((Reverse(distance.0 + 1), new_pos));
-//             }
-//         }
-//         match grid.get(pos) {
-//             Some(v) if (v == 1) => {return distance.0;},
-//             _ => {},
-//         }
-//     }
-//     minimum_distance
-// }
 
 fn main() {
     let start_time = Instant::now();
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let (grid, start_pos, end_pos) = Grid::parse(&input);
-    println!("{:?}", search(&grid, start_pos, end_pos));
-    println!("{:?}", search_lowest_exhaust(&grid, end_pos));
+    println!("width: {}, height: {}", grid.width, grid.height);
+    println!(
+        "found S: {:?}",
+        search(&grid, start_pos, move_pos, end_at(end_pos)).expect("no path found")
+    );
+    println!(
+        "found a: {:?}",
+        search(&grid, end_pos, climb_down, end_when_meet(1)).expect("no path found")
+    );
 
     println!("time: {}", start_time.elapsed().as_micros());
 }
@@ -247,23 +208,58 @@ mod tests {
     fn test_search() {
         let input = include_str!("../../input/day12-test");
         let (grid, start, end) = Grid::parse(input);
-        assert_eq!(search(&grid, start, end), Some(31));
+        assert_eq!(search(&grid, start, move_pos, end_at(end)), Some(31));
     }
 
     #[test]
     fn test_move() {
         let input = include_str!("../../input/day12-test");
         let (grid, start, end) = Grid::parse(input);
-        assert_eq!(move_pos(&grid, (0, 2), (0, 1)), Some(((0, 3), 1)));
+        assert_eq!(move_pos(&grid, (0, 2), (0, 1)), Some((0, 3)));
         assert_eq!(move_pos(&grid, (0, 2), (-1, 0)), None);
-        assert_eq!(move_pos(&grid, (2, 2), (0, 1)), Some(((2, 3), 3)));
+        assert_eq!(move_pos(&grid, (2, 2), (0, 1)), Some((2, 3)));
         assert_eq!(move_pos(&grid, (2, 3), (1, 0)), None);
     }
 
     #[test]
-    fn test_search_back() {
+    fn test_climb_down() {
         let input = include_str!("../../input/day12-test");
         let (grid, start, end) = Grid::parse(input);
-        assert_eq!(search_lowest_exhaust(&grid, end), 29);
+        assert_eq!(climb_down(&grid, (5, 2), (0, -1)), None);
+        assert_eq!(climb_down(&grid, (5, 2), (0, 1)), None);
+        assert_eq!(climb_down(&grid, (5, 2), (-1, 0)), Some((4, 2)));
+        assert_eq!(climb_down(&grid, (5, 2), (1, 0)), None);
+
+        assert_eq!(climb_down(&grid, (2, 2), (0, -1)), Some((2, 1)));
+        assert_eq!(climb_down(&grid, (2, 2), (0, 1)), Some((2, 3)));
+        assert_eq!(climb_down(&grid, (2, 2), (-1, 0)), Some((1, 2)));
+        assert_eq!(climb_down(&grid, (2, 2), (1, 0)), Some((3, 2)));
+
+        assert_eq!(climb_down(&grid, (5, 1), (0, -1)), None);
+        assert_eq!(climb_down(&grid, (5, 1), (0, 1)), Some((5, 2)));
+        assert_eq!(climb_down(&grid, (5, 1), (-1, 0)), Some((4, 1)));
+        assert_eq!(climb_down(&grid, (5, 1), (1, 0)), Some((6, 1)));
+
+        assert_eq!(climb_down(&grid, (4, 2), (-1, 0)), None);
+        assert_eq!(climb_down(&grid, (4, 2), (1, 0)), Some((5, 2)));
+
+        assert_eq!(climb_down(&grid, (3, 2), (-1, 0)), None);
+        assert_eq!(climb_down(&grid, (3, 2), (1, 0)), Some((4, 2)));
+
+        assert_eq!(climb_down(&grid, (2, 2), (-1, 0)), Some((1, 2)));
+        assert_eq!(climb_down(&grid, (2, 2), (1, 0)), Some((3, 2)));
+
+        assert_eq!(climb_down(&grid, (1, 2), (-1, 0)), None);
+        assert_eq!(climb_down(&grid, (1, 2), (1, 0)), Some((2, 2)));
+
+        assert_eq!(climb_down(&grid, (0, 2), (-1, 0)), None);
+        assert_eq!(climb_down(&grid, (0, 2), (1, 0)), Some((1, 2)));
+    }
+
+    #[test]
+    fn test_search_until() {
+        let input = include_str!("../../input/day12-test");
+        let (grid, start, end) = Grid::parse(input);
+        assert_eq!(search(&grid, end, climb_down, end_when_meet(1)), Some(29));
     }
 }
