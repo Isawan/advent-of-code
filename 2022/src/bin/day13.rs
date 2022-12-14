@@ -10,7 +10,7 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-#[derive(Debug, PartialEq, Eq, Ord)]
+#[derive(Debug, PartialEq, Eq)]
 enum Packet {
     Number(u32),
     List(Vec<Rc<Packet>>),
@@ -35,18 +35,12 @@ fn packet(input: &str) -> nom::IResult<&str, Packet> {
     ))(input)
 }
 
-impl PartialOrd for Packet {
-    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
-        Some(cmp(self, rhs))
-    }
-}
-
 fn cmp_list(left: &Vec<Rc<Packet>>, right: &Vec<Rc<Packet>>) -> Ordering {
     let mut left_iter = left.iter();
     let mut right_iter = right.iter();
     loop {
         match (left_iter.next(), right_iter.next()) {
-            (None, None) => return Ordering::Equal, // TODO: figure out matching
+            (None, None) => return Ordering::Equal,
             (None, Some(_)) => return Ordering::Less,
             (Some(_), None) => return Ordering::Greater,
             (Some(l), Some(r)) => {
@@ -109,7 +103,7 @@ fn sort_all(input: &str) -> Vec<Packet> {
         .collect::<Vec<Packet>>();
     let mut markers = vec![packet("[[2]]").unwrap().1, packet("[[6]]").unwrap().1];
     packets.append(&mut markers);
-    packets.sort();
+    packets.sort_by(|a, b| cmp(a, b));
     packets
 }
 
