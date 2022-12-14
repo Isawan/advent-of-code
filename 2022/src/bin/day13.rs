@@ -31,10 +31,9 @@ fn packet(input: &str) -> nom::IResult<&str, Packet> {
             ),
             complete::char(']'),
         ),
-        combinator::map_res(
-            complete::digit1,
-            |n: &str| -> Result<Packet, _> { n.parse::<u32>().map(Packet::Number) },
-        ),
+        combinator::map_res(complete::digit1, |n: &str| -> Result<Packet, _> {
+            n.parse::<u32>().map(Packet::Number)
+        }),
     ))(input)
 }
 
