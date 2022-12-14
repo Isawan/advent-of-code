@@ -1,4 +1,7 @@
-use nom::{self};
+use nom::character::complete;
+use nom::multi::separated_list0;
+use nom::sequence::delimited;
+use nom::{self, branch, combinator};
 use std::cmp::Ordering;
 use std::rc::Rc;
 use std::time::Instant;
@@ -17,19 +20,19 @@ enum Packet {
 }
 
 fn packet(input: &str) -> nom::IResult<&str, Packet> {
-    nom::branch::alt((
-        nom::sequence::delimited(
-            nom::character::complete::char('['),
-            nom::combinator::map(
-                nom::multi::separated_list0(nom::character::complete::char(','), |p| {
+    branch::alt((
+        delimited(
+            complete::char('['),
+            combinator::map(
+                separated_list0(complete::char(','), |p| {
                     packet(p).map(|(a, b)| (a, Rc::new(b)))
                 }),
                 Packet::List,
             ),
-            nom::character::complete::char(']'),
+            complete::char(']'),
         ),
-        nom::combinator::map_res(
-            nom::character::complete::digit1,
+        combinator::map_res(
+            complete::digit1,
             |n: &str| -> Result<Packet, _> { n.parse::<u32>().map(Packet::Number) },
         ),
     ))(input)
