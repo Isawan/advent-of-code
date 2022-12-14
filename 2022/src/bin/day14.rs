@@ -36,7 +36,7 @@ fn parse_paths(lines: &str) -> Vec<Vec<(i32, i32)>> {
         .collect::<Vec<Vec<(i32, i32)>>>()
 }
 
-fn paths_to_walls(paths: Vec<Vec<(i32, i32)>>) -> Positions{
+fn paths_to_walls(paths: Vec<Vec<(i32, i32)>>) -> Positions {
     let mut positions = BTreeMap::new();
     for path in paths.iter() {
         let mut path_points = path.iter();
@@ -82,7 +82,9 @@ fn move_sand(positions: &Positions, sand: (i32, i32)) -> Option<(i32, i32)> {
 }
 
 fn sim_round(mut positions: Positions, endless: bool) -> (Positions, Option<(i32, i32)>) {
+    // accidental N^3 here as the cave fills up but oh well fast enough.
     let bottom = positions.keys().fold(0, |a, x| std::cmp::max(a, x.1));
+
     let mut sand = (500, 0);
     while let Some(next_sand) = move_sand(&positions, sand) {
         if endless && (next_sand.1 > bottom) {
