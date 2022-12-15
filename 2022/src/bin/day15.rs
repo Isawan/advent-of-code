@@ -56,10 +56,7 @@ fn calc_cover(input: &str, intersect_y: i32) -> i32 {
         .iter()
         .map(|i| i.beacon)
         .collect::<BTreeSet<(i32, i32)>>();
-    let spans = infos
-        .iter()
-        .filter_map(|i| i.intersect_y(intersect_y))
-        .collect::<Vec<(i32, i32)>>();
+    let spans = infos.iter().filter_map(|i| i.intersect_y(intersect_y));
     let grouped_spans = group_spans(spans);
     let area_covered_by_span: i32 = grouped_spans
         .iter()
@@ -80,10 +77,7 @@ fn calc_cover(input: &str, intersect_y: i32) -> i32 {
 fn calc_spot(input: &str, most: i32) -> i64 {
     let infos = parse(input);
     for y in 0..=most {
-        let spans = infos
-            .iter()
-            .filter_map(|i| i.intersect_y(y))
-            .collect::<Vec<(i32, i32)>>();
+        let spans = infos.iter().filter_map(|i| i.intersect_y(y));
         let restricted_spans = restrict_spans(spans, most);
         let grouped_spans = group_spans(restricted_spans);
         if grouped_spans.len() != 1 {
@@ -93,22 +87,23 @@ fn calc_spot(input: &str, most: i32) -> i64 {
     unreachable!();
 }
 
-fn restrict_spans(spans: Vec<(i32, i32)>, most: i32) -> Vec<(i32, i32)> {
-    spans
-        .iter()
-        .filter_map(|(x0, x1)| {
-            if x1 < &0 {
-                return None;
-            }
-            if x0 > &most {
-                return None;
-            }
-            Some((*max(x0, &0), *min(x1, &most)))
-        })
-        .collect()
+fn restrict_spans(
+    spans: impl Iterator<Item = (i32, i32)>,
+    most: i32,
+) -> impl Iterator<Item = (i32, i32)> {
+    spans.filter_map(move |(x0, x1)| {
+        if x1 < 0 {
+            return None;
+        }
+        if x0 > most {
+            return None;
+        }
+        Some((max(x0, 0), min(x1, most)))
+    })
 }
 
-fn group_spans(mut spans: Vec<(i32, i32)>) -> Vec<(i32, i32)> {
+fn group_spans(spans: impl Iterator<Item = (i32, i32)>) -> Vec<(i32, i32)> {
+    let mut spans = spans.collect::<Vec<(i32, i32)>>();
     spans.sort();
     let mut end_spans = Vec::with_capacity(100);
     for span in spans.iter() {
@@ -191,10 +186,7 @@ mod tests {
     fn test_examples() {
         let input = include_str!("../../input/day15-test");
         let infos = parse(input);
-        let spans = infos
-            .iter()
-            .filter_map(|i| i.intersect_y(10))
-            .collect::<Vec<(i32, i32)>>();
+        let spans = infos.iter().filter_map(|i| i.intersect_y(10));
         let grouped_spans = group_spans(spans);
         assert_eq!(grouped_spans, vec![(-2, 24)]);
     }
