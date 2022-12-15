@@ -1,0 +1,212 @@
+use lazy_static::lazy_static;
+use regex::Regex;
+use std::cmp::{max, min};
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::Instant;
+use structopt::StructOpt;
+
+#[derive(StructOpt)]
+struct Cli {
+    #[structopt(parse(from_os_str))]
+    path: std::path::PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+struct SensorInfo {
+    sensor: (i32, i32),
+    beacon: (i32, i32),
+}
+
+impl From<((i32, i32), (i32, i32))> for SensorInfo {
+    fn from(tuple: ((i32, i32), (i32, i32))) -> Self {
+        SensorInfo {
+            sensor: tuple.0,
+            beacon: tuple.1,
+        }
+    }
+}
+
+impl SensorInfo {
+    fn cover_distance(&self) -> i32 {
+        (self.sensor.0 - self.beacon.0).abs() + (self.sensor.1 - self.beacon.1).abs()
+    }
+    fn intersect_y(&self, y: i32) -> Option<(i32, i32)> {
+        // handle not intersecting
+        let min_distance = (self.sensor.1 - y).abs();
+        if min_distance > self.cover_distance() {
+            return None;
+        }
+
+        let spread = (self.cover_distance() - min_distance);
+        Some((self.sensor.0 - spread, self.sensor.0 + spread))
+    }
+}
+
+fn beacon_covered_by_span(beacon: (i32, i32), y: i32, span: (i32, i32)) -> bool {
+    // does not lay on intersection line
+    if beacon.1 != y {
+        return false;
+    }
+    span.0 <= beacon.0 && span.1 >= beacon.0
+}
+
+fn calc_cover(input: &str, intersect_y: i32) -> i32 {
+    let infos = parse(input);
+    let beacons = infos
+        .iter()
+        .map(|i| i.beacon)
+        .collect::<BTreeSet<(i32, i32)>>();
+    let spans = infos
+        .iter()
+        .filter_map(|i| i.intersect_y(intersect_y))
+        .collect::<Vec<(i32, i32)>>();
+    let grouped_spans = group_spans(spans);
+    let area_covered_by_span: i32 = grouped_spans
+        .iter()
+        .map(|(start, end)| end - start + 1)
+        .sum();
+    let mut beacons_in_span = 0;
+    for beacon in beacons.iter() {
+        for span in grouped_spans.iter() {
+            if beacon_covered_by_span(*beacon, intersect_y, *span) {
+                beacons_in_span = beacons_in_span + 1;
+                continue;
+            }
+        }
+    }
+    area_covered_by_span - beacons_in_span
+}
+
+fn calc_spot(input: &str, most: i32) {
+    let infos = parse(input);
+    let mut not_covered_rows = Vec::new();
+    for y in 0..=most {
+        let spans = infos
+            .iter()
+            .filter_map(|i| i.intersect_y(y))
+            .collect::<Vec<(i32, i32)>>();
+        let restricted_spans = restrict_spans(spans, most);
+        let grouped_spans = group_spans(restricted_spans);
+        if grouped_spans.len() != 1 {
+            not_covered_rows.push((y, grouped_spans));
+        }
+    }
+    println!("rows: {:?}", not_covered_rows);
+}
+
+fn restrict_spans(spans: Vec<(i32, i32)>, most: i32) -> Vec<(i32, i32)> {
+    spans
+        .iter()
+        .filter_map(|(x0, x1)| {
+            if x1 < &0 {
+                return None;
+            }
+            if x0 > &most {
+                return None;
+            }
+            Some((*max(x0, &0), *min(x1, &most)))
+        })
+        .collect()
+}
+
+fn group_spans(mut spans: Vec<(i32, i32)>) -> Vec<(i32, i32)> {
+    spans.sort();
+    let mut opened = 0;
+    let mut end_spans = Vec::new();
+    for span in spans.iter() {
+        let (start, end) = *span;
+        if let Some(last_span @ (last_start, last_end)) = end_spans.pop() {
+            if start <= last_end {
+                // overlap. merge them
+                end_spans.push((last_start, max(end, last_end)));
+            } else if last_end + 1 == start {
+                // ends touching. merge them
+                end_spans.push((last_start, end));
+            } else {
+                // keep seperate
+                end_spans.push(last_span);
+                end_spans.push(span.clone());
+            }
+        } else {
+            end_spans.push(span.clone());
+        }
+    }
+    end_spans
+}
+
+lazy_static! {
+    static ref re: Regex =
+        Regex::new(r"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)")
+            .unwrap();
+}
+
+fn parse(input: &str) -> Vec<SensorInfo> {
+    re.captures_iter(input)
+        .map(|m| {
+            (
+                (
+                    m.get(1).unwrap().as_str().parse::<i32>().unwrap(),
+                    m.get(2).unwrap().as_str().parse::<i32>().unwrap(),
+                ),
+                (
+                    m.get(3).unwrap().as_str().parse::<i32>().unwrap(),
+                    m.get(4).unwrap().as_str().parse::<i32>().unwrap(),
+                ),
+            )
+        })
+        .map(|x| x.into())
+        .collect()
+}
+
+fn main() {
+    let args = Cli::from_args();
+    let input = std::fs::read_to_string(args.path.as_path()).unwrap();
+    let start_time = Instant::now();
+    println!("solution 1: {}", calc_cover(&input, 2_000_000));
+    calc_spot(&input, 4_000_000);
+    println!("solution 2:");
+    println!("time: {}", start_time.elapsed().as_micros());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse() {
+        let input = include_str!("../../input/day15-test");
+        let infos = parse(input);
+        assert_eq!(infos.len(), 14);
+    }
+
+    #[test]
+    fn test_intersect() {
+        let info = SensorInfo {
+            sensor: (8, 7),
+            beacon: (2, 10),
+        };
+        let (x0, x1) = info.intersect_y(2).unwrap();
+        assert_eq!(x0, 4);
+        assert_eq!(x1, 12);
+    }
+
+    #[test]
+    fn test_examples() {
+        let input = include_str!("../../input/day15-test");
+        let infos = parse(input);
+        let spans = infos
+            .iter()
+            .filter_map(|i| i.intersect_y(10))
+            .collect::<Vec<(i32, i32)>>();
+        let grouped_spans = group_spans(spans);
+        assert_eq!(grouped_spans, vec![(-2, 24)]);
+    }
+
+    #[test]
+    fn test_cover() {
+        let input = include_str!("../../input/day15-test");
+        assert_eq!(calc_cover(input, 9), 25);
+        assert_eq!(calc_cover(input, 10), 26);
+        assert_eq!(calc_cover(input, 11), 28);
+    }
+}
