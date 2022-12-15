@@ -103,10 +103,11 @@ fn restrict_spans(
 }
 
 fn group_spans(spans: impl Iterator<Item = (i32, i32)>) -> Vec<(i32, i32)> {
-    let mut spans = spans.collect::<Vec<(i32, i32)>>();
-    spans.sort();
-    let mut end_spans = Vec::with_capacity(100);
-    for span in spans.iter() {
+    let mut sorted_spans = Vec::with_capacity(128);
+    sorted_spans.extend(spans);
+    sorted_spans.sort();
+    let mut end_spans = Vec::with_capacity(128);
+    for span in sorted_spans.iter() {
         let (start, end) = *span;
         if let Some(last_span @ (last_start, last_end)) = end_spans.pop() {
             if start <= last_end {
