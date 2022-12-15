@@ -194,7 +194,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::Inspect;
 
     use super::*;
 
@@ -214,7 +213,7 @@ mod tests {
     #[test]
     fn test_move() {
         let input = include_str!("../../input/day12-test");
-        let (grid, start, end) = Grid::parse(input);
+        let (grid, _, _) = Grid::parse(input);
         assert_eq!(climb_up(&grid, (0, 2), (0, 1)), Some((0, 3)));
         assert_eq!(climb_up(&grid, (0, 2), (-1, 0)), None);
         assert_eq!(climb_up(&grid, (2, 2), (0, 1)), Some((2, 3)));
@@ -224,7 +223,7 @@ mod tests {
     #[test]
     fn test_climb_down() {
         let input = include_str!("../../input/day12-test");
-        let (grid, start, end) = Grid::parse(input);
+        let (grid, _, _) = Grid::parse(input);
         assert_eq!(climb_down(&grid, (5, 2), (0, -1)), None);
         assert_eq!(climb_down(&grid, (5, 2), (0, 1)), None);
         assert_eq!(climb_down(&grid, (5, 2), (-1, 0)), Some((4, 2)));
@@ -259,7 +258,7 @@ mod tests {
     #[test]
     fn test_search_until() {
         let input = include_str!("../../input/day12-test");
-        let (grid, start, end) = Grid::parse(input);
+        let (grid, _, end) = Grid::parse(input);
         assert_eq!(search(&grid, end, climb_down, end_when_meet(1)), Some(29));
     }
 }

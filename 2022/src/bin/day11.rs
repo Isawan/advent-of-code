@@ -113,7 +113,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::Inspect;
 
     use super::*;
 
@@ -131,7 +130,7 @@ mod tests {
     fn multiple_monkey_rounds() {
         let mut monkeys = init_monkeys();
         let mut total_inspections = vec![0; monkeys.len()];
-        for i in 0..20 {
+        for _ in 0..20 {
             let round_inspections;
             (monkeys, round_inspections) = monkey_round(monkeys);
             total_inspections = zip(total_inspections, round_inspections)
@@ -161,7 +160,7 @@ mod tests {
 
         let mut monkeys = init_monkeys();
         let mut total_inspections = vec![0; monkeys.len()];
-        for i in 0..20 {
+        for _ in 0..20 {
             let round_inspections;
             (monkeys, round_inspections) = worried_monkey_round(monkeys);
             total_inspections = zip(total_inspections, round_inspections)

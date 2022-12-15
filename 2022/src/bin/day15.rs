@@ -77,9 +77,8 @@ fn calc_cover(input: &str, intersect_y: i32) -> i32 {
     area_covered_by_span - beacons_in_span
 }
 
-fn calc_spot(input: &str, most: i32) {
+fn calc_spot(input: &str, most: i32) -> i64 {
     let infos = parse(input);
-    let mut not_covered_rows = Vec::new();
     for y in 0..=most {
         let spans = infos
             .iter()
@@ -88,10 +87,10 @@ fn calc_spot(input: &str, most: i32) {
         let restricted_spans = restrict_spans(spans, most);
         let grouped_spans = group_spans(restricted_spans);
         if grouped_spans.len() != 1 {
-            not_covered_rows.push((y, grouped_spans));
+            return (y as i64) + ((grouped_spans[0].1 + 1) as i64) * 4_000_000;
         }
     }
-    println!("rows: {:?}", not_covered_rows);
+    unreachable!();
 }
 
 fn restrict_spans(spans: Vec<(i32, i32)>, most: i32) -> Vec<(i32, i32)> {
@@ -111,7 +110,7 @@ fn restrict_spans(spans: Vec<(i32, i32)>, most: i32) -> Vec<(i32, i32)> {
 
 fn group_spans(mut spans: Vec<(i32, i32)>) -> Vec<(i32, i32)> {
     spans.sort();
-    let mut end_spans = Vec::new();
+    let mut end_spans = Vec::with_capacity(100);
     for span in spans.iter() {
         let (start, end) = *span;
         if let Some(last_span @ (last_start, last_end)) = end_spans.pop() {
@@ -162,8 +161,7 @@ fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     println!("solution 1: {}", calc_cover(&input, 2_000_000));
-    calc_spot(&input, 4_000_000);
-    println!("solution 2:");
+    println!("solution 2: {}", calc_spot(&input, 4_000_000));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
@@ -207,5 +205,11 @@ mod tests {
         assert_eq!(calc_cover(input, 9), 25);
         assert_eq!(calc_cover(input, 10), 26);
         assert_eq!(calc_cover(input, 11), 28);
+    }
+
+    #[test]
+    fn test_spot_search() {
+        let input = include_str!("../../input/day15-test");
+        assert_eq!(calc_spot(input, 20), 56000011);
     }
 }
