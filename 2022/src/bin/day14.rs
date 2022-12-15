@@ -41,7 +41,7 @@ fn paths_to_walls(paths: Vec<Vec<(i32, i32)>>) -> Positions {
     for path in paths.iter() {
         let mut path_points = path.iter();
         if let Some(mut previous) = path_points.next() {
-            while let Some(mut next) = path_points.next() {
+            while let Some(next) = path_points.next() {
                 if previous.0 - next.0 == 0 {
                     let x = previous.0;
                     let start = min(previous.1, next.1);
@@ -125,7 +125,7 @@ fn count_until_full(input: &str) -> u32 {
     positions = add_floor(positions);
     let mut count_rounds = 0;
     loop {
-        let (new_positions, next) = sim_round(positions, false);
+        let (new_positions, _) = sim_round(positions, false);
         count_rounds = count_rounds + 1;
         if let Some(_) = new_positions.get(&(500, 0)) {
             break;
@@ -141,6 +141,7 @@ fn main() {
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     println!("solution 1: {}", count_rounds(&input));
     println!("solution 2: {}", count_until_full(&input));
+    println!("time: {}", start_time.elapsed().as_micros());
 }
 
 #[cfg(test)]

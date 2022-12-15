@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::cmp::{max, min};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -37,7 +37,7 @@ impl SensorInfo {
             return None;
         }
 
-        let spread = (self.cover_distance() - min_distance);
+        let spread = self.cover_distance() - min_distance;
         Some((self.sensor.0 - spread, self.sensor.0 + spread))
     }
 }
@@ -111,7 +111,6 @@ fn restrict_spans(spans: Vec<(i32, i32)>, most: i32) -> Vec<(i32, i32)> {
 
 fn group_spans(mut spans: Vec<(i32, i32)>) -> Vec<(i32, i32)> {
     spans.sort();
-    let mut opened = 0;
     let mut end_spans = Vec::new();
     for span in spans.iter() {
         let (start, end) = *span;
@@ -135,13 +134,13 @@ fn group_spans(mut spans: Vec<(i32, i32)>) -> Vec<(i32, i32)> {
 }
 
 lazy_static! {
-    static ref re: Regex =
+    static ref RE: Regex =
         Regex::new(r"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)")
             .unwrap();
 }
 
 fn parse(input: &str) -> Vec<SensorInfo> {
-    re.captures_iter(input)
+    RE.captures_iter(input)
         .map(|m| {
             (
                 (
@@ -159,9 +158,9 @@ fn parse(input: &str) -> Vec<SensorInfo> {
 }
 
 fn main() {
+    let start_time = Instant::now();
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
-    let start_time = Instant::now();
     println!("solution 1: {}", calc_cover(&input, 2_000_000));
     calc_spot(&input, 4_000_000);
     println!("solution 2:");
