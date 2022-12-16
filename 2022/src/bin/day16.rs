@@ -80,8 +80,11 @@ fn search(
             0
         };
         best_flow_rate = max(
-            flow_without_local_release,
-            flow_with_local_release + local_flow,
+            max(
+                flow_without_local_release,
+                flow_with_local_release + local_flow,
+            ),
+            best_flow_rate,
         );
     }
     best_flow_rate
@@ -110,7 +113,9 @@ mod tests {
     fn test_search() {
         let input = include_str!("../../input/day16-test");
         let map = parse(input);
-        let cost = search(&map, &BTreeSet::new(), "AA", 13);
-        //assert_eq!();
+        assert_eq!(search(&map, &BTreeSet::new(), "AA", 1), 0);
+        assert_eq!(search(&map, &BTreeSet::new(), "AA", 2), 20);
+        assert_eq!(search(&map, &BTreeSet::new(), "AA", 3), 21);
+        assert_eq!(search(&map, &BTreeSet::new(), "AA", 4), 23);
     }
 }
