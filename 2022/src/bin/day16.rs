@@ -59,19 +59,18 @@ type Pressure = u32;
 fn distance(map: &BTreeMap<&str, Valve>, from: &str, to: &str) -> Option<u32> {
     let mut heap = BinaryHeap::new();
     let mut visited = BTreeSet::new();
-    heap.push((0, from));
+    heap.push((Reverse(0), from));
     loop {
-        if let (dist, position) = heap.pop()? {
-            if position == to {
-                return Some(dist);
+        let (Reverse(dist), position) = heap.pop()?;
+        if position == to {
+            return Some(dist);
+        }
+        for next_position in map.get(position).unwrap().tunnels.iter() {
+            if visited.contains(next_position) {
+                continue;
             }
-            for next_position in map.get(position).unwrap().tunnels.iter() {
-                if visited.contains(next_position) {
-                    continue;
-                }
-                visited.insert(next_position);
-                heap.push((dist + 1, next_position))
-            }
+            visited.insert(next_position);
+            heap.push((Reverse(dist + 1), next_position))
         }
     }
 }
@@ -108,18 +107,24 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
             //println!("pressure {:?}, total_flow_rate: {:?}")
             // out of time
             if remaining_time == 0 {
-                println!("{:?}", path);
+                //if pressure >= 1690 {
+                //    println!("time0 {:?}, {}", path, pressure);
+                //}
                 best_pressure = max(best_pressure, pressure);
                 continue;
             }
 
             // we've opened everything, just watch
             if non_zeros.len() == 0 {
-                println!("{:?}", path);
-                best_pressure = max(
-                    best_pressure,
-                    pressure + total_flow_rate * (remaining_time - 1),
-                );
+                assert_eq!(full_pressure, total_flow_rate);
+                if pressure + total_flow_rate * remaining_time >= 1690 {
+                    //println!(
+                    //    "len0 {:?} {}",
+                    //    path,
+                    //    pressure + total_flow_rate * remaining_time
+                    //);
+                }
+                best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
                 continue;
             }
 
@@ -138,13 +143,24 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
                 // don't travel if we're not going to get to the destination.
                 // Just calculate remaining total pressure and stop this branch
                 if remaining_time <= travel_time {
+                    //                    if pressure + total_flow_rate * remaining_time >= 1651 {
+                    //                        println!(
+                    //                            "notrav {:?}, {} {} {} {} {} {}",
+                    //                            path,
+                    //                            pressure,
+                    //                            total_flow_rate,
+                    //                            remaining_time,
+                    //                            travel_time,
+                    //                            next_position,
+                    //                            pressure + total_flow_rate * remaining_time
+                    //                        );
+                    //                    }
                     best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
                     continue;
                 }
 
-                let next_pressure = pressure
-                    + (total_flow_rate + next_valve.flow_rate)
-                    + ((total_flow_rate) * travel_time);
+                let next_pressure =
+                    pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
 
                 queue.push_back((
                     next_pressure,
@@ -167,7 +183,6 @@ fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let map = parse(&input);
-    println!("{}", map.values().map(|x| x.flow_rate).sum::<u32>());
     println!("solution 1: {}", search(&map, "AA", args.minutes));
     println!("time: {}", start_time.elapsed().as_micros());
 }
@@ -187,8 +202,9 @@ mod tests {
         let input = include_str!("../../input/day16-test");
         let map = parse(input);
         assert_eq!(search(&map, "AA", 1), 0);
-        assert_eq!(search(&map, "AA", 2), 20);
-        assert_eq!(search(&map, "AA", 3), 40);
+        assert_eq!(search(&map, "AA", 2), 0);
+        assert_eq!(search(&map, "AA", 3), 20);
+        assert_eq!(search(&map, "AA", 4), 40);
     }
 
     #[test]
