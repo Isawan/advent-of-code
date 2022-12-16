@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use ndarray::RawDataMut;
 use regex::{Regex, RegexBuilder};
 use std::cmp::{max, min, Reverse};
 use std::collections::{BTreeMap, HashMap, VecDeque};
@@ -76,14 +77,14 @@ fn distance(map: &BTreeMap<&str, Valve>, from: &str, to: &str) -> Option<u32> {
 }
 
 fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pressure {
-    let mut queue: VecDeque<(
-        Pressure,
+    let mut queue: BinaryHeap<(
+        Reverse<Pressure>,
         TotalFlowRate,
         RemainingTime,
         NonZeroPositions,
         CurrentPosition,
         Vec<&str>,
-    )> = VecDeque::new();
+    )> = BinaryHeap::new();
 
     let mut nonzero_positions = BTreeSet::new();
     let mut best_pressure = 0;
@@ -92,24 +93,28 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
         map.iter()
             .filter_map(|(k, v)| if v.flow_rate != 0 { Some(k) } else { None }),
     );
-    queue.push_back((
-        0,
+    queue.push((
+        Reverse(0),
         0,
         time,
         nonzero_positions,
         current_position,
         vec![current_position],
     ));
+    let mut distance_cache = HashMap::new();
+    let max_heap_size = 10000;
     loop {
-        if let Some((pressure, total_flow_rate, remaining_time, non_zeros, curr, path)) =
-            queue.pop_front()
+        if let Some((Reverse(pressure), total_flow_rate, remaining_time, non_zeros, curr, path)) =
+            queue.pop()
         {
-            //println!("pressure {:?}, total_flow_rate: {:?}")
+            // trim the queue to keep the heap managable
+            // does not garuntee response but good enough
+            while queue.len() > max_heap_size {
+                queue.pop();
+            }
+
             // out of time
             if remaining_time == 0 {
-                //if pressure >= 1690 {
-                //    println!("time0 {:?}, {}", path, pressure);
-                //}
                 best_pressure = max(best_pressure, pressure);
                 continue;
             }
@@ -117,14 +122,12 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
             // we've opened everything, just watch
             if non_zeros.len() == 0 {
                 assert_eq!(full_pressure, total_flow_rate);
-                if pressure + total_flow_rate * remaining_time >= 1690 {
-                    //println!(
-                    //    "len0 {:?} {}",
-                    //    path,
-                    //    pressure + total_flow_rate * remaining_time
-                    //);
-                }
                 best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
+                continue;
+            }
+
+            // remove impossible cases
+            if pressure + full_pressure * remaining_time < best_pressure {
                 continue;
             }
 
@@ -132,7 +135,12 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
             // start by finding candidate locations
             for next_position in non_zeros.iter() {
                 let next_valve = map.get(next_position).unwrap();
-                let travel_time = distance(map, curr, next_position).unwrap();
+                let travel_time = distance_cache
+                    .entry((curr, next_position.clone()))
+                    .or_insert(distance(map, curr, next_position).unwrap())
+                    .clone();
+
+                //let travel_time = distance(map, curr, next_position).unwrap();
 
                 let mut next_path = path.clone();
                 next_path.push(&next_position);
@@ -143,18 +151,6 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
                 // don't travel if we're not going to get to the destination.
                 // Just calculate remaining total pressure and stop this branch
                 if remaining_time <= travel_time {
-                    //                    if pressure + total_flow_rate * remaining_time >= 1651 {
-                    //                        println!(
-                    //                            "notrav {:?}, {} {} {} {} {} {}",
-                    //                            path,
-                    //                            pressure,
-                    //                            total_flow_rate,
-                    //                            remaining_time,
-                    //                            travel_time,
-                    //                            next_position,
-                    //                            pressure + total_flow_rate * remaining_time
-                    //                        );
-                    //                    }
                     best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
                     continue;
                 }
@@ -162,8 +158,8 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
                 let next_pressure =
                     pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
 
-                queue.push_back((
-                    next_pressure,
+                queue.push((
+                    Reverse(next_pressure),
                     total_flow_rate + next_valve.flow_rate,
                     remaining_time - 1 - travel_time, // time travelling minus one to open the valve
                     new_non_zeros,
@@ -177,6 +173,8 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
     }
     best_pressure
 }
+
+fn elephant_search() -> u32 {}
 
 fn main() {
     let start_time = Instant::now();
