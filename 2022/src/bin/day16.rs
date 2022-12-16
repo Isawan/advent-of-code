@@ -53,7 +53,6 @@ fn search(
     current_position: &str,
     remaining_time: u32,
 ) -> u32 {
-    // NOTE: we don't need to keep track of if the previous positions has been openned.
     let valve = map.get(current_position).unwrap();
     let mut new_previous_positions = previous_positions.clone();
     new_previous_positions.insert(current_position);
@@ -70,20 +69,23 @@ fn search(
             next_position,
             remaining_time - 1,
         );
-        let flow_with_local_release = match remaining_time.checked_sub(2) {
-            Some(t) => search(map, &new_previous_positions, next_position, t),
-            None => 0,
-        };
-        let local_flow = if !previous_positions.contains(current_position) {
+        let local_flow_rate = if !previous_positions.contains(current_position) {
             valve.flow_rate
         } else {
             0
         };
+        let flow_with_local_release = match remaining_time {
+            t if t == 1 => local_flow_rate,
+            t if t > 1 => {
+                local_flow_rate + search(map, &new_previous_positions, next_position, t - 2)
+            }
+            _ => panic!("expected this case to be dealt with higher up"),
+        };
+        // NOTE: we don't need to keep track of if the previous positions has been opened.
+        // This is because it can only be openned once, so we assume the first visit
+        // may have opened it.
         best_flow_rate = max(
-            max(
-                flow_without_local_release,
-                flow_with_local_release + local_flow,
-            ),
+            max(flow_without_local_release, flow_with_local_release),
             best_flow_rate,
         );
     }
