@@ -387,7 +387,7 @@ fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let map = parse(&input);
-    println!("solution 1: {}", search(&map, "AA", args.minutes));
+    println!("solution 1: {}", search(&map, "aa", args.minutes));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
