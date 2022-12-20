@@ -1,6 +1,5 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
-use std::hash::Hash;
 use std::time::Instant;
 use structopt::StructOpt;
 
