@@ -1,10 +1,3 @@
-use lazy_static::lazy_static;
-use nom::bytes::streaming::is_a;
-use regex::{Regex, RegexBuilder};
-use std::cmp::{max, min, Reverse};
-use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::collections::{BTreeSet, BinaryHeap};
-use std::iter;
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -36,22 +29,6 @@ impl Iterator for Commands {
     }
 }
 
-fn find_cycles(vector: &[impl Eq]) -> Vec<usize> {
-    let mut cycles = Vec::new();
-    cycles.push(vector.len());
-    for shift in 1..vector.len() {
-        let mut same = true;
-        for index in 0..vector.len() {
-            same = same && (vector[index] == vector[(index + shift) % vector.len()]);
-        }
-        if same {
-            cycles.push(shift);
-        }
-    }
-    cycles.sort();
-    cycles
-}
-
 fn parse(input: &str) -> Commands {
     let buffer: Vec<Direction> = input
         .chars()
@@ -69,9 +46,36 @@ fn parse(input: &str) -> Commands {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Shape {
     rock_positions: &'static [(usize, usize)],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShapeType {
+    VerticalLine,
+    Cross,
+    Ell,
+    HorizontalLine,
+    Square,
+}
+
+impl From<Shape> for ShapeType {
+    fn from(shape: Shape) -> Self {
+        if shape == Shape::vertical_line() {
+            ShapeType::VerticalLine
+        } else if shape == Shape::cross() {
+            ShapeType::Cross
+        } else if shape == Shape::ell() {
+            ShapeType::Ell
+        } else if shape == Shape::horizontal_line() {
+            ShapeType::HorizontalLine
+        } else if shape == Shape::square() {
+            ShapeType::Square
+        } else {
+            panic!("unexpected shape");
+        }
+    }
 }
 
 impl Shape {
@@ -109,11 +113,12 @@ impl Shape {
 #[derive(Debug)]
 struct ShapeGenerator {
     index: usize,
+    cycle: usize,
 }
 
 impl ShapeGenerator {
     fn new() -> Self {
-        ShapeGenerator { index: 4 }
+        ShapeGenerator { index: 4, cycle: 5 }
     }
 }
 
@@ -147,7 +152,7 @@ impl Position {
 
 #[derive(Debug)]
 struct Chamber {
-    placements: Vec<bool>,
+    placements: Vec<u8>,
     width: usize,
 }
 
@@ -158,29 +163,29 @@ impl Chamber {
             width: 7,
         }
     }
+    fn top_rows(&self, n: usize) -> &[u8] {
+        &self.placements[(self.placements.len() - n)..self.placements.len()]
+    }
     fn width(&self) -> usize {
         self.width
     }
     fn height(&self) -> usize {
-        self.placements.len() / self.width
+        self.placements.len()
     }
     fn get(&self, pos: &Position) -> bool {
-        let index = (pos.y() * self.width()) + pos.x();
-        self.placements.get(index).copied().unwrap_or(false)
+        self.placements
+            .get(pos.y())
+            .map(|b| (b & (0x01 << pos.x())) != 0)
+            .unwrap_or(false)
     }
-    fn set(mut self, shape: &Shape, pos: Position) -> Self {
+    fn set(mut self, shape: &Shape, pos: &Position) -> Self {
         let set_pos = shape.positions().map(|(x, y)| (x + pos.x(), y + pos.y()));
         for each_pos in set_pos {
             // allocate layer as needed to accommodate for higher positions
             while each_pos.1 >= self.height() {
-                self.placements.extend(iter::repeat(false).take(self.width));
+                self.placements.push(0);
             }
-            assert_eq!(
-                self.placements[(each_pos.1 * self.width()) + each_pos.0],
-                false
-            );
-            let index = (each_pos.1 * self.width()) + each_pos.0;
-            self.placements[index] = true;
+            self.placements[each_pos.1] = self.placements[each_pos.1] | (0x01 << each_pos.0);
         }
         self
     }
@@ -242,35 +247,86 @@ fn run_round(
     chamber: Chamber,
     shape: &Shape,
     dir: &mut impl Iterator<Item = Direction>,
-) -> Chamber {
+) -> (Chamber, Vec<Position>) {
     let mut pos = Position::new_shape_position(&chamber);
+    let mut positions_visited = Vec::new();
     let end_pos = loop {
+        positions_visited.push(pos.clone());
         let next_pos = move_horizontal(&chamber, pos, shape, dir.next().unwrap());
         pos = match move_vertical(&chamber, next_pos.clone(), shape) {
             Some(p) => p,
             None => break next_pos,
         };
     };
-    chamber.set(shape, end_pos)
+    positions_visited.push(end_pos.clone());
+    (chamber.set(shape, &end_pos), positions_visited)
 }
 
 type Height = usize;
-fn run(input: &str, times: u32) -> Height {
+fn run(input: &str, times: u64) -> Height {
     let mut chamber = Chamber::new();
     let mut directions = parse(input);
     let mut shape_generator = ShapeGenerator::new();
 
     for _ in 0..times {
-        chamber = run_round(chamber, &shape_generator.next().unwrap(), &mut directions)
+        (chamber, _) = run_round(chamber, &shape_generator.next().unwrap(), &mut directions)
     }
     chamber.height()
 }
 
+fn find_cycle(rows: &[impl Eq + std::fmt::Debug], window: usize) -> Option<usize> {
+    for shift in (window..rows.len()).step_by(window) {
+        let last_window = &rows[(rows.len() - window)..rows.len()];
+        let test_window = &rows[(rows.len() - window - shift)..(rows.len() - shift)];
+        println!(
+            "len: {} window: {} shift: {}, l: {:?}, t: {:?}",
+            rows.len(),
+            window,
+            shift,
+            last_window,
+            test_window
+        );
+        if last_window == test_window {
+            return Some(shift);
+        }
+    }
+    None
+}
+
+fn run_with_cycle_search(input: &str, times: u64) -> Height {
+    let mut chamber = Chamber::new();
+    let mut directions = parse(input);
+    let mut shape_generator = ShapeGenerator::new();
+    let total_cycles = if directions.cycle % shape_generator.cycle == 0 {
+        directions.cycle
+    } else {
+        directions.cycle * shape_generator.cycle
+    };
+    let mut rounds = 0;
+    let mut history: Vec<(u64, ShapeType, usize)> = Vec::new();
+
+    // start by warming up for cycle detection
+    for _ in 0..times {
+        let positions;
+        let shape = shape_generator.next().unwrap();
+        (chamber, positions) = run_round(chamber, &shape, &mut directions);
+        rounds += 1;
+        let shape_type = shape.into();
+        for pos in positions {
+            history.push((rounds, shape_type, pos.x()));
+        }
+    }
+    let cycle = find_cycle(history.as_slice(), total_cycles);
+    println!("cycle: {:?}", cycle);
+    chamber.height()
+}
+
 fn main() {
-    let start_time = Instant::now();
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
+    let start_time = Instant::now();
     println!("solution1 {:?}", run(&input, 2022));
+    println!("solution2 {:?}", run_with_cycle_search(&input, 1_000_000));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
@@ -284,7 +340,7 @@ mod tests {
     fn test_set_line_horizontal() {
         let chamber = Chamber::new();
         let place_position = Position::new(&chamber, (1, 0)).unwrap();
-        let chamber = chamber.set(&Shape::horizontal_line(), place_position);
+        let chamber = chamber.set(&Shape::horizontal_line(), &place_position);
         let get = |p| chamber.get(&Position::new(&chamber, p).unwrap());
         assert_eq!(get((0, 0)), false);
         assert_eq!(get((1, 0)), true);
@@ -306,7 +362,7 @@ mod tests {
     fn test_set_line_vertical() {
         let chamber = Chamber::new();
         let place_position = Position::new(&chamber, (1, 0)).unwrap();
-        let chamber = chamber.set(&Shape::vertical_line(), place_position);
+        let chamber = chamber.set(&Shape::vertical_line(), &place_position);
         let get = |p| chamber.get(&Position::new(&chamber, p).unwrap());
         assert_eq!(get((0, 0)), false);
         assert_eq!(get((0, 1)), false);
@@ -329,7 +385,7 @@ mod tests {
     fn test_set_line_ell() {
         let chamber = Chamber::new();
         let place_position = Position::new(&chamber, (1, 0)).unwrap();
-        let chamber = chamber.set(&Shape::ell(), place_position);
+        let chamber = chamber.set(&Shape::ell(), &place_position);
         let get = |p| chamber.get(&Position::new(&chamber, p).unwrap());
         assert_eq!(get((0, 0)), false);
         assert_eq!(get((0, 1)), false);
@@ -357,7 +413,7 @@ mod tests {
     fn test_round() {
         let chamber = Chamber::new();
         let mut directions = parse(include_str!("../../input/day17-test"));
-        let chamber = run_round(chamber, &Shape::horizontal_line(), &mut directions);
+        let (chamber, _) = run_round(chamber, &Shape::horizontal_line(), &mut directions);
         let get = |p| chamber.get(&Position::new(&chamber, p).unwrap());
         assert_eq!(get((0, 0)), false);
         assert_eq!(get((1, 0)), false);
@@ -416,6 +472,23 @@ mod tests {
 
     #[test]
     fn test_find_cycles() {
-        assert_eq!(find_cycles(&[1, 0, 0, 1, 0, 0]), vec![3, 6]);
+        //assert_eq!(find_cycle(&[0, 0, 0, 3, 0, 0, 3, 0, 0], 3), Some(3));
+        //assert_eq!(
+        //    find_cycle(&[0, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0], 3),
+        //    Some(3)
+        //);
+        assert_eq!(
+            find_cycle(&[3, 0, 0, 4, 0, 0, 3, 0, 0, 4, 0, 0], 3),
+            Some(6)
+        );
+        //assert_eq!(find_cycle(&[0, 0, 0, 0, 0, 0, 0, 3, 0, 0], 3), None));
     }
+
+    //#[test]
+    //fn test_example_with_cycles() {
+    //    assert_eq!(
+    //        run_with_cycle_search(include_str!("../../input/day17-test"), 1000000000000),
+    //        1514285714288
+    //    );
+    //}
 }
