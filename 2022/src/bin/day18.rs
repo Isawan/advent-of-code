@@ -68,7 +68,6 @@ fn in_bounds(p: &Point, bounds: &(Point, Point)) -> bool {
 
 fn outside(droplet: &HashSet<Point>) -> HashSet<Point> {
     let bounds = find_corners(droplet);
-    println!("{:?}", bounds);
     let start = bounds.0;
     let mut search = vec![start];
     let mut visited: HashSet<Point> = HashSet::new();
