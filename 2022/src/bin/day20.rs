@@ -1,7 +1,3 @@
-use std::cmp::{max, min};
-use std::collections::HashSet;
-use std::iter;
-use std::mem::swap;
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -40,41 +36,23 @@ fn parse(input: &str) -> Vec<isize> {
     input.lines().map(|line| line.parse().unwrap()).collect()
 }
 
-fn move_right(file: &mut Vec<impl Clone>, from: usize, amount: usize) {
+fn move_right(file: &mut Vec<impl Clone + std::fmt::Debug>, from: usize, amount: usize) {
     let size = file.len();
-    let to = (from + amount).rem_euclid(size);
-    let mut last_value = file[to].clone();
-    file[to] = file[from].clone();
-    if from + amount < size {
-        for i in (from..to).rev() {
-            swap(&mut file[i], &mut last_value);
-        }
-    } else {
-        // handle wrapping
-        for i in (to..=from) {
-            swap(&mut file[i], &mut last_value);
-        }
-    }
+    let to = from + amount;
+    let hold = file.remove(from);
+    let new_index = to.rem_euclid(size - 1);
+    file.insert(new_index, hold);
 }
 
 fn move_left(file: &mut Vec<impl Clone + std::fmt::Debug>, from: usize, amount: usize) {
-    let size = file.len();
-    let to = if from > amount {
-        from - amount
+    let size = file.len() as isize;
+    let to = (from as isize) - (amount as isize);
+    let hold = file.remove(from);
+    let new_index = to.rem_euclid(size - 1);
+    if new_index == 0 {
+        file.push(hold);
     } else {
-        (size - 1) - (amount - from)
-    };
-    let mut last_value = file[to].clone();
-    file[to] = file[from].clone();
-    if from > amount {
-        for i in ((to + 1)..=from) {
-            swap(&mut file[i], &mut last_value);
-        }
-    } else {
-        // handle wrapping
-        for i in (from..to).rev() {
-            swap(&mut file[i], &mut last_value);
-        }
+        file.insert(new_index as usize, hold);
     }
 }
 
@@ -102,7 +80,10 @@ fn move_once(file: &mut Vec<State>) -> Option<()> {
 
 fn mix(mut input: Vec<isize>) -> Vec<isize> {
     let mut file: Vec<State> = input.drain(..).map(State::from).collect();
-    while let Some(_) = move_once(&mut file) {}
+    let mut count = 0;
+    while let Some(_) = move_once(&mut file) {
+        count += 1;
+    }
     input.extend(file.iter().map(State::value));
     input
 }
@@ -147,14 +128,14 @@ mod tests {
     fn test_move_far_right() {
         let mut input = vec![0, 1, 2, 3, 4, 5, 6];
         move_right(&mut input, 5, 8);
-        assert_eq!(input, vec![0, 1, 2, 3, 4, 6, 5]);
+        assert_eq!(input, vec![0, 5, 1, 2, 3, 4, 6]);
     }
 
     #[test]
     fn test_move_far_left() {
         let mut input = vec![0, 1, 2, 3, 4, 5, 6];
         move_left(&mut input, 5, 8);
-        assert_eq!(input, vec![0, 1, 2, 3, 5, 4, 6]);
+        assert_eq!(input, vec![0, 1, 2, 5, 3, 4, 6]);
     }
 
     #[test]
