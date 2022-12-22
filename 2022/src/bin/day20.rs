@@ -1,3 +1,4 @@
+use nom::multi;
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -9,26 +10,31 @@ struct Cli {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum State {
-    Moved(isize),
-    Unmoved(isize),
+    Moved(isize, usize),
+    Unmoved(isize, usize),
 }
 
 impl State {
+    fn new(value: isize, order: usize) -> State {
+        State::Unmoved(value, order)
+    }
+    fn moved(&self) -> State {
+        State::Moved(self.value(), self.order())
+    }
+    fn reset(&self) -> State {
+        State::Unmoved(self.value(), self.order())
+    }
     fn value(&self) -> isize {
         match self {
-            State::Moved(i) => *i,
-            State::Unmoved(i) => *i,
+            State::Moved(i, _) => *i,
+            State::Unmoved(i, _) => *i,
         }
     }
-}
-impl From<&isize> for State {
-    fn from(i: &isize) -> Self {
-        State::Unmoved(*i)
-    }
-}
-impl From<isize> for State {
-    fn from(i: isize) -> Self {
-        State::Unmoved(i)
+    fn order(&self) -> usize {
+        match self {
+            State::Moved(_, i) => *i,
+            State::Unmoved(_, i) => *i,
+        }
     }
 }
 
@@ -36,7 +42,7 @@ fn parse(input: &str) -> Vec<isize> {
     input.lines().map(|line| line.parse().unwrap()).collect()
 }
 
-fn move_right(file: &mut Vec<impl Clone + std::fmt::Debug>, from: usize, amount: usize) {
+fn move_right(file: &mut Vec<impl Clone>, from: usize, amount: usize) {
     let size = file.len();
     let to = from + amount;
     let hold = file.remove(from);
@@ -44,7 +50,7 @@ fn move_right(file: &mut Vec<impl Clone + std::fmt::Debug>, from: usize, amount:
     file.insert(new_index, hold);
 }
 
-fn move_left(file: &mut Vec<impl Clone + std::fmt::Debug>, from: usize, amount: usize) {
+fn move_left(file: &mut Vec<impl Clone>, from: usize, amount: usize) {
     let size = file.len() as isize;
     let to = (from as isize) - (amount as isize);
     let hold = file.remove(from);
@@ -57,14 +63,19 @@ fn move_left(file: &mut Vec<impl Clone + std::fmt::Debug>, from: usize, amount: 
 }
 
 fn move_once(file: &mut Vec<State>) -> Option<()> {
-    let search_unmoved = file.iter().position(|c| match c {
-        State::Moved(_) => false,
-        State::Unmoved(_) => true,
-    });
-    let size = file.len() as isize;
+    let search_unmoved = file
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| match s {
+            State::Moved(..) => false,
+            State::Unmoved(..) => true,
+        })
+        .min_by(|(_, a), (_, b)| a.order().cmp(&b.order()))
+        .map(|(i, a)| i);
+
     if let Some(index) = search_unmoved {
         let value = file[index].value();
-        file[index] = State::Moved(value);
+        file[index] = (&file[index]).moved();
         if value > 0 {
             move_right(file, index, value.abs() as usize);
         } else if value == 0 {
@@ -79,10 +90,30 @@ fn move_once(file: &mut Vec<State>) -> Option<()> {
 }
 
 fn mix(mut input: Vec<isize>) -> Vec<isize> {
-    let mut file: Vec<State> = input.drain(..).map(State::from).collect();
-    let mut count = 0;
-    while let Some(_) = move_once(&mut file) {
-        count += 1;
+    let mut file: Vec<State> = input
+        .drain(..)
+        .enumerate()
+        .map(|(i, v)| State::new(v, i))
+        .collect();
+    while let Some(i) = move_once(&mut file) {}
+    input.extend(file.iter().map(State::value));
+    input
+}
+
+fn multimix(mut input: Vec<isize>, times: usize) -> Vec<isize> {
+    input.iter_mut().for_each(|x| {
+        *x = *x * 811589153;
+    });
+    let mut file: Vec<State> = input
+        .drain(..)
+        .enumerate()
+        .map(|(i, v)| State::new(v, i))
+        .collect();
+    for i in 0..times {
+        while let Some(i) = move_once(&mut file) {}
+        file.iter_mut().for_each(|x| {
+            *x = x.reset();
+        })
     }
     input.extend(file.iter().map(State::value));
     input
@@ -100,6 +131,10 @@ fn main() {
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
     println!("solution 1: {}", sum_of_coordinates(&mix(parse(&input))));
+    println!(
+        "solution 2: {}",
+        sum_of_coordinates(&multimix(parse(&input), 10))
+    );
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
@@ -157,32 +192,34 @@ mod tests {
     fn test_move_once() {
         let mut input: Vec<State> = parse(include_str!("../../input/day20-test"))
             .iter()
-            .map(State::from)
+            .enumerate()
+            .map(|(i, v)| State::new(*v, i))
             .collect();
+        println!("{:?}", input);
         move_once(&mut input);
         assert_eq!(
             input,
             vec![
-                State::Unmoved(2),
-                State::Moved(1),
-                State::Unmoved(-3),
-                State::Unmoved(3),
-                State::Unmoved(-2),
-                State::Unmoved(0),
-                State::Unmoved(4)
+                State::Unmoved(2, 1),
+                State::Moved(1, 0),
+                State::Unmoved(-3, 2),
+                State::Unmoved(3, 3),
+                State::Unmoved(-2, 4),
+                State::Unmoved(0, 5),
+                State::Unmoved(4, 6)
             ]
         );
         move_once(&mut input);
         assert_eq!(
             input,
             vec![
-                State::Moved(1),
-                State::Unmoved(-3),
-                State::Moved(2),
-                State::Unmoved(3),
-                State::Unmoved(-2),
-                State::Unmoved(0),
-                State::Unmoved(4)
+                State::Moved(1, 0),
+                State::Unmoved(-3, 2),
+                State::Moved(2, 1),
+                State::Unmoved(3, 3),
+                State::Unmoved(-2, 4),
+                State::Unmoved(0, 5),
+                State::Unmoved(4, 6)
             ]
         );
     }
@@ -199,5 +236,12 @@ mod tests {
         let input = parse(include_str!("../../input/day20-test"));
         let output = mix(input);
         assert_eq!(sum_of_coordinates(&output), 3);
+    }
+
+    #[test]
+    fn test_multimix() {
+        let input = parse(include_str!("../../input/day20-test"));
+        let output = multimix(input, 10);
+        assert_eq!(sum_of_coordinates(&output), 1623178306);
     }
 }
