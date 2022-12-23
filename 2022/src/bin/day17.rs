@@ -99,7 +99,7 @@ impl Shape {
         Shape {
             rock_positions: &[(0, 0), (1, 0), (2, 0), (2, 1), (2, 2)],
         }
-    } // CAREFUL NEED TO HANDLE ASYMMETRY. Ignore for now, revisit when the world is implemented.
+    }
     fn horizontal_line() -> Self {
         Shape {
             rock_positions: &[(0, 0), (1, 0), (2, 0), (3, 0)],
