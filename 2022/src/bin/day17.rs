@@ -332,7 +332,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use regex::CaptureMatches;
 
     use super::*;
 
