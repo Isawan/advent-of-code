@@ -1,4 +1,3 @@
-use nom::multi;
 use std::time::Instant;
 use structopt::StructOpt;
 
@@ -71,7 +70,7 @@ fn move_once(file: &mut Vec<State>) -> Option<()> {
             State::Unmoved(..) => true,
         })
         .min_by(|(_, a), (_, b)| a.order().cmp(&b.order()))
-        .map(|(i, a)| i);
+        .map(|(i, _)| i);
 
     if let Some(index) = search_unmoved {
         let value = file[index].value();
@@ -95,7 +94,7 @@ fn mix(mut input: Vec<isize>) -> Vec<isize> {
         .enumerate()
         .map(|(i, v)| State::new(v, i))
         .collect();
-    while let Some(i) = move_once(&mut file) {}
+    while let Some(_) = move_once(&mut file) {}
     input.extend(file.iter().map(State::value));
     input
 }
@@ -109,8 +108,8 @@ fn multimix(mut input: Vec<isize>, times: usize) -> Vec<isize> {
         .enumerate()
         .map(|(i, v)| State::new(v, i))
         .collect();
-    for i in 0..times {
-        while let Some(i) = move_once(&mut file) {}
+    for _ in 0..times {
+        while let Some(_) = move_once(&mut file) {}
         file.iter_mut().for_each(|x| {
             *x = x.reset();
         })
