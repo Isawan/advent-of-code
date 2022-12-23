@@ -1,13 +1,12 @@
-use ndarray::ScalarOperand;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{alpha1, multispace1},
-    combinator::{map, map_res},
+    combinator::map,
     sequence::{self, delimited, terminated, tuple},
     IResult,
 };
-use std::{collections::HashMap, hash::Hash, time::Instant};
+use std::{collections::HashMap, time::Instant};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -39,11 +38,6 @@ impl Operation<'_> {
     }
 }
 
-enum Value {
-    Constant(i64),
-    Variable(i64),
-}
-
 fn monkey<'a>(line: &'a str) -> IResult<&str, (&str, Operation<'_>)> {
     sequence::pair(
         terminated(alpha1, tag(": ")),
@@ -55,7 +49,7 @@ fn monkey<'a>(line: &'a str) -> IResult<&str, (&str, Operation<'_>)> {
                     delimited(multispace1, tag("+"), multispace1),
                     alpha1,
                 )),
-                |(a, b, c)| Operation::Add(a, c),
+                |(a, _, b)| Operation::Add(a, b),
             ),
             map(
                 tuple((
@@ -63,7 +57,7 @@ fn monkey<'a>(line: &'a str) -> IResult<&str, (&str, Operation<'_>)> {
                     delimited(multispace1, tag("-"), multispace1),
                     alpha1,
                 )),
-                |(a, b, c)| Operation::Sub(a, c),
+                |(a, _, b)| Operation::Sub(a, b),
             ),
             map(
                 tuple((
@@ -71,7 +65,7 @@ fn monkey<'a>(line: &'a str) -> IResult<&str, (&str, Operation<'_>)> {
                     delimited(multispace1, tag("*"), multispace1),
                     alpha1,
                 )),
-                |(a, b, c)| Operation::Mul(a, c),
+                |(a, _, b)| Operation::Mul(a, b),
             ),
             map(
                 tuple((
@@ -79,7 +73,7 @@ fn monkey<'a>(line: &'a str) -> IResult<&str, (&str, Operation<'_>)> {
                     delimited(multispace1, tag("/"), multispace1),
                     alpha1,
                 )),
-                |(a, b, c)| Operation::Div(a, c),
+                |(a, _, b)| Operation::Div(a, b),
             ),
         )),
     )(line)
@@ -98,7 +92,7 @@ fn op(monkey_name: &str, context: &HashMap<&str, Operation>) -> i64 {
         Operation::Mul(a, b) => op(a, context) * op(b, context),
         Operation::Div(a, b) => op(a, context) / op(b, context),
         Operation::Eq(a, b) => {
-            if (op(a, context) == op(b, context)) {
+            if op(a, context) == op(b, context) {
                 1
             } else {
                 0
@@ -142,6 +136,9 @@ fn simp_op<'a>(name: &'a str, monkeys: &mut HashMap<&'a str, Operation<'a>>) -> 
     value
 }
 
+/// This was used to view the topology of the graph to implement the solver.
+/// An S-expression was generated that I could then visualize.
+#[allow(dead_code)]
 fn print_tree(name: &str, monkeys: &HashMap<&str, Operation>) {
     print!("(");
     let operation = monkeys.get(name).expect("monkey not found").clone();
@@ -185,11 +182,6 @@ fn solve(input: &str) -> i64 {
     let root_monkey = monkeys.get("root").unwrap().clone();
     let (rleft, rright) = root_monkey.children().unwrap();
     monkeys.insert("root", Operation::Eq(rleft, rright));
-
-    // fix human operation
-    let root_monkey = monkeys.get("root").unwrap().clone();
-    let (hleft, hright) = root_monkey.children().unwrap();
-    monkeys.insert("humn", Operation::Identity(0));
 
     // simplify tree
     simp_op("root", &mut monkeys);
