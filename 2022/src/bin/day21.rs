@@ -39,6 +39,11 @@ impl Operation<'_> {
     }
 }
 
+enum Value {
+    Constant(i64),
+    Variable(i64),
+}
+
 fn monkey<'a>(line: &'a str) -> IResult<&str, (&str, Operation<'_>)> {
     sequence::pair(
         terminated(alpha1, tag(": ")),
@@ -173,7 +178,7 @@ fn print_tree(name: &str, monkeys: &HashMap<&str, Operation>) {
     print!(")");
 }
 
-fn monkey_brute(input: &str) -> Option<i64> {
+fn solve(input: &str) -> i64 {
     let mut monkeys = parse(input);
 
     // fix root operation
@@ -186,18 +191,52 @@ fn monkey_brute(input: &str) -> Option<i64> {
     let (hleft, hright) = root_monkey.children().unwrap();
     monkeys.insert("humn", Operation::Identity(0));
 
+    // simplify tree
     simp_op("root", &mut monkeys);
-    print_tree("root", &monkeys);
-    println!("reached");
 
-    for human in 0.. {
-        monkeys.insert("humn", Operation::Identity(human));
-        let result = op("root", &monkeys);
-        if result == 1 {
-            return Some(human);
-        }
+    inverse("root", 1, &monkeys)
+}
+
+fn inverse(name: &str, target: i64, monkeys: &HashMap<&str, Operation>) -> i64 {
+    let operation = monkeys.get(name).unwrap();
+    match operation {
+        Operation::Identity(_) => panic!("this function should not be called on identity"),
+        Operation::Add(a, b) => match (monkeys.get(a).unwrap(), monkeys.get(b).unwrap()) {
+            (Operation::Identity(_), Operation::Identity(i)) if a == &"humn" => target - i,
+            (Operation::Identity(i), Operation::Identity(_)) if b == &"humn" => target - i,
+            (Operation::Identity(i), _) => inverse(b, target - i, monkeys),
+            (_, Operation::Identity(i)) => inverse(a, target - i, monkeys),
+            _ => {
+                unreachable!("non-linear path detected")
+            }
+        },
+        Operation::Sub(a, b) => match (monkeys.get(a).unwrap(), monkeys.get(b).unwrap()) {
+            (Operation::Identity(_), Operation::Identity(i)) if a == &"humn" => target + i,
+            (Operation::Identity(i), Operation::Identity(_)) if b == &"humn" => i - target,
+            (Operation::Identity(i), _) => inverse(b, i - target, monkeys),
+            (_, Operation::Identity(i)) => inverse(a, target + i, monkeys),
+            _ => unreachable!("non-linear path detected"),
+        },
+        Operation::Mul(a, b) => match (monkeys.get(a).unwrap(), monkeys.get(b).unwrap()) {
+            (Operation::Identity(_), Operation::Identity(i)) if a == &"humn" => target / i,
+            (Operation::Identity(i), Operation::Identity(_)) if b == &"humn" => target / i,
+            (Operation::Identity(i), _) => inverse(b, target / i, monkeys),
+            (_, Operation::Identity(i)) => inverse(a, target / i, monkeys),
+            _ => unreachable!("non-linear path detected"),
+        },
+        Operation::Div(a, b) => match (monkeys.get(a).unwrap(), monkeys.get(b).unwrap()) {
+            (Operation::Identity(_), Operation::Identity(i)) if a == &"humn" => target * i,
+            (Operation::Identity(i), Operation::Identity(_)) if b == &"humn" => i / target,
+            (Operation::Identity(i), _) => inverse(b, i / target, monkeys),
+            (_, Operation::Identity(i)) => inverse(a, target * i, monkeys),
+            _ => unreachable!("non-linear path detected"),
+        },
+        Operation::Eq(a, b) => match (monkeys.get(a).unwrap(), monkeys.get(b).unwrap()) {
+            (Operation::Identity(i), _) => inverse(b, *i, monkeys),
+            (_, Operation::Identity(i)) => inverse(a, *i, monkeys),
+            _ => unreachable!("non-linear path detected"),
+        },
     }
-    None
 }
 
 fn main() {
@@ -205,7 +244,7 @@ fn main() {
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
     println!("solution 1: {}", monkey_think(&input));
-    println!("solution 2: {:?}", monkey_brute(&input));
+    println!("solution 2: {:?}", solve(&input));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
@@ -233,17 +272,17 @@ mod tests {
     }
 
     #[test]
-    fn test_monkey_brute() {
-        let input = include_str!("../../input/day21-test");
-        assert_eq!(monkey_brute(input), Some(301));
-    }
-
-    #[test]
     fn test_simplify() {
         let mut monkeys = parse(include_str!("../../input/day21-test"));
         let original = op("root", &monkeys);
         simp_op("root", &mut monkeys);
         let new = op("root", &monkeys);
         assert_eq!(original, new);
+    }
+
+    #[test]
+    fn test_solver() {
+        let input = include_str!("../../input/day21-test");
+        assert_eq!(solve(input), 301);
     }
 }
