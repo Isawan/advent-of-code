@@ -1,9 +1,8 @@
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::{
-    cmp::min,
     collections::{HashMap, HashSet},
     convert::TryInto,
     fmt,
-    hash::Hash,
     time::Instant,
 };
 use structopt::StructOpt;
@@ -108,7 +107,7 @@ fn first_half(elves: HashMap<(i32, i32), Elf>) -> HashMap<(i32, i32), Elf> {
     // dirty clone to get around lifetime rules in the apply stage
     let old_elves_position: HashSet<(i32, i32)> = elves.keys().cloned().collect();
     elves
-        .into_iter()
+        .into_par_iter()
         .map(|(pos, elf)| {
             if adjacent(&pos)
                 .filter(|adj| old_elves_position.contains(&adj))
@@ -138,7 +137,7 @@ fn second_half(elves: HashMap<(i32, i32), Elf>) -> HashMap<(i32, i32), Elf> {
         });
 
     elves
-        .into_iter()
+        .into_par_iter()
         .map(|(pos, mut elf)| {
             elf.rules_order.rotate_left(1);
             match elf.state.clone() {
@@ -201,7 +200,7 @@ fn rule(
 
 fn simulation(input: &str, rounds: u32) -> i32 {
     let mut elves = parse(input);
-    for round in 1..=rounds {
+    for _ in 1..=rounds {
         elves = first_half(elves);
         elves = second_half(elves);
     }
