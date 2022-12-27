@@ -267,6 +267,7 @@ fn search(input: &str) -> Option<i32> {
     let mut queue = BinaryHeap::with_capacity(1_000_000);
     let height = history.height;
     let width = history.width;
+    // TODO: add another dimension for measuring "trip" which is parameterised by target
     let mut visited = vec![false; (width * height * history.full_cycle_length) as usize];
     // use cyclic condition to avoid repeats
     let to_index = |x: i32, y: i32, t: i32| -> usize {
@@ -277,6 +278,7 @@ fn search(input: &str) -> Option<i32> {
         .unwrap()
     };
     let mut best = None;
+    let mut candidates = Vec::with_capacity(5);
     queue.push(Ranker {
         position: start,
         target: &target,
@@ -291,7 +293,6 @@ fn search(input: &str) -> Option<i32> {
         },
     ) = queue.pop()
     {
-        let (x, y) = position;
         search_count += 1;
         if &position == target {
             best = best.or(Some(time)).map(|best_time| min(best_time, time));
@@ -300,29 +301,30 @@ fn search(input: &str) -> Option<i32> {
 
         // bound all branches that are worst than the best found case.
         if let Some(best_time) = best {
-            if best_time < time || best_time < rank.distance_to_target() {
+            if best_time < time || best_time < time + rank.distance_to_target() {
                 continue;
             }
         }
 
-        let mut candidates: Vec<_> = adjacent(&position)
-            .filter(|adj| !visited[to_index(adj.0, adj.1, time + 1)])
-            .filter_map(|adj| match history.get(&adj, time + 1) {
-                HistoryTile::Ground => Some(Ranker {
-                    position: adj,
-                    target,
-                    time: time + 1,
+        candidates.extend(
+            adjacent(&position)
+                .filter(|adj| !visited[to_index(adj.0, adj.1, time + 1)])
+                .filter_map(|adj| match history.get(&adj, time + 1) {
+                    HistoryTile::Ground => Some(Ranker {
+                        position: adj,
+                        target,
+                        time: time + 1,
+                    }),
+                    HistoryTile::Blizzard => None,
+                    HistoryTile::Wall => None,
                 }),
-                HistoryTile::Blizzard => None,
-                HistoryTile::Wall => None,
-            })
-            .collect();
+        );
         for rank @ Ranker {
-            position: candidate_position,
+            position: (next_x, next_y),
             ..
-        } in candidates
+        } in candidates.drain(..)
         {
-            visited[to_index(candidate_position.0, candidate_position.1, time + 1)] = true;
+            visited[to_index(next_x, next_y, time + 1)] = true;
             queue.push(rank);
         }
     }
