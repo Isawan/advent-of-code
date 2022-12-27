@@ -18,14 +18,12 @@ enum BlizzardDirection {
 #[derive(Debug, Clone, Copy)]
 enum Tile {
     Blizzard { direction: BlizzardDirection },
-    Wall,
     Ground,
 }
 
 impl From<Tile> for char {
     fn from(tile: Tile) -> Self {
         match tile {
-            Tile::Wall => '#',
             Tile::Ground => '.',
             Tile::Blizzard {
                 direction: BlizzardDirection::Down,
@@ -77,25 +75,18 @@ impl ValleyHistory {
                 .unwrap()
         };
         for ((start_x, start_y), direction) in valley.blizzards() {
-            let t = 0;
-            match direction {
-                BlizzardDirection::Right => {
-                    for t in 0..full_cycle_length {
+            for t in 0..full_cycle_length {
+                match direction {
+                    BlizzardDirection::Right => {
                         blizzard_map[to_index(start_x + t, start_y, t)] = HistoryTile::Blizzard;
                     }
-                }
-                BlizzardDirection::Left => {
-                    for t in 0..full_cycle_length {
+                    BlizzardDirection::Left => {
                         blizzard_map[to_index(start_x - t, start_y, t)] = HistoryTile::Blizzard;
                     }
-                }
-                BlizzardDirection::Up => {
-                    for t in 0..full_cycle_length {
+                    BlizzardDirection::Up => {
                         blizzard_map[to_index(start_x, start_y - t, t)] = HistoryTile::Blizzard;
                     }
-                }
-                BlizzardDirection::Down => {
-                    for t in 0..full_cycle_length {
+                    BlizzardDirection::Down => {
                         blizzard_map[to_index(start_x, start_y + t, t)] = HistoryTile::Blizzard;
                     }
                 }
@@ -126,7 +117,8 @@ impl ValleyHistory {
         self.blizzard_map[index]
     }
 
-    fn display_time(&self, time: i32) -> String {
+    #[allow(dead_code)]
+    fn display_at_time(&self, time: i32) -> String {
         let mut s = String::new();
         for y in 0..self.height {
             for x in 0..self.width {
@@ -149,18 +141,6 @@ impl From<Valley> for ValleyHistory {
 }
 
 impl Valley {
-    fn get(&self, position: (i32, i32)) -> Tile {
-        // we assume the blizzard never covers the ending squares.
-        if position == (0, -1) || position == (self.width - 1, self.height) {
-            return Tile::Ground;
-        }
-        if position.0 < 0 || position.1 < 0 || position.0 >= self.width || position.1 >= self.height
-        {
-            return Tile::Wall;
-        }
-        self.field
-            [<i32 as TryInto<usize>>::try_into((self.width * position.1) + position.0).unwrap()]
-    }
     fn blizzards(&self) -> impl Iterator<Item = ((i32, i32), BlizzardDirection)> + '_ {
         let width = self.width;
         self.field.iter().enumerate().filter_map(move |(i, tile)| {
@@ -171,16 +151,6 @@ impl Valley {
                 _ => None,
             }
         })
-    }
-    fn display(&self) -> String {
-        let mut s = String::new();
-        for y in 0..self.height {
-            for x in 0..self.width {
-                s.push(self.get((x, y)).into());
-            }
-            s.push('\n');
-        }
-        s
     }
 }
 
@@ -200,7 +170,7 @@ fn parse(input: &str) -> Valley {
             || original_x == original_width - 1
             || original_y == original_height - 1
         {
-            // we don't want the edges (we'll handle this within the Valley datastructure)
+            // we don't want the edges (we'll handle this within the ValleyHistory datastructure)
             continue;
         }
         let new_x = original_x - 1;
@@ -276,8 +246,8 @@ fn search(
     let mut queue = BinaryHeap::with_capacity(1_000_000);
     let height = history.height;
     let width = history.width;
-    // TODO: add another dimension for measuring "trip" which is parameterised by target
     let mut visited = vec![false; (width * height * history.full_cycle_length) as usize];
+
     // use cyclic condition to avoid repeats
     let to_index = |x: i32, y: i32, t: i32| -> usize {
         ((t.rem_euclid(history.full_cycle_length) * height * width)
@@ -293,7 +263,6 @@ fn search(
         target: &target,
         time: start_time,
     });
-    let mut search_count = 0;
     while let Some(
         rank @ Ranker {
             position,
@@ -302,7 +271,6 @@ fn search(
         },
     ) = queue.pop()
     {
-        search_count += 1;
         if &position == target {
             best = best.or(Some(time)).map(|best_time| min(best_time, time));
             continue;
@@ -364,13 +332,13 @@ mod tests {
 
     #[test]
     fn test_parser() {
-        let valley = parse(include_str!("../../input/day24-test"));
+        let _ = parse(include_str!("../../input/day24-test"));
     }
 
     #[test]
     fn test_valley_history() {
         let valley = parse(include_str!("../../input/day24-test"));
-        let history = ValleyHistory::new(valley);
+        let _ = ValleyHistory::new(valley);
     }
 
     #[test]
