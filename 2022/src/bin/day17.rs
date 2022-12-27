@@ -119,7 +119,7 @@ struct ShapeGenerator {
 
 impl ShapeGenerator {
     fn new() -> Self {
-        ShapeGenerator { index: 4, }
+        ShapeGenerator { index: 4 }
     }
     fn as_bytes(&self) -> [u8; 8] {
         self.index.to_ne_bytes()

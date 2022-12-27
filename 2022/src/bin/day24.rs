@@ -260,10 +260,19 @@ impl PartialOrd for Ranker<'_> {
     }
 }
 
-fn search(input: &str) -> Option<i32> {
-    let history = ValleyHistory::new(parse(input));
-    let start = (0, -1);
-    let target = (history.width - 1, history.height);
+fn get_start() -> (i32, i32) {
+    (0, -1)
+}
+fn get_end(history: &ValleyHistory) -> (i32, i32) {
+    (history.width - 1, history.height)
+}
+
+fn search(
+    history: &ValleyHistory,
+    start_time: i32,
+    segment: ((i32, i32), (i32, i32)),
+) -> Option<i32> {
+    let (start, target) = segment;
     let mut queue = BinaryHeap::with_capacity(1_000_000);
     let height = history.height;
     let width = history.width;
@@ -282,7 +291,7 @@ fn search(input: &str) -> Option<i32> {
     queue.push(Ranker {
         position: start,
         target: &target,
-        time: 0,
+        time: start_time,
     });
     let mut search_count = 0;
     while let Some(
@@ -335,7 +344,17 @@ fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
-    println!("solution 1: {:?}", search(&input));
+    let history = ValleyHistory::new(parse(&input));
+    println!(
+        "solution 1: {:?}",
+        search(&history, 0, (get_start(), get_end(&history)))
+    );
+    println!(
+        "solution 2: {:?}",
+        search(&history, 0, (get_start(), get_end(&history)))
+            .and_then(|time| search(&history, time, (get_end(&history), get_start())))
+            .and_then(|time| search(&history, time, (get_start(), get_end(&history)))),
+    );
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
@@ -356,7 +375,21 @@ mod tests {
 
     #[test]
     fn test_example() {
-        let input = include_str!("../../input/day24-test");
-        assert_eq!(search(input), Some(18));
+        let history = ValleyHistory::new(parse(include_str!("../../input/day24-test")));
+        assert_eq!(
+            search(&history, 0, (get_start(), get_end(&history))),
+            Some(18)
+        );
+    }
+
+    #[test]
+    fn test_multiple_segments() {
+        let history = ValleyHistory::new(parse(include_str!("../../input/day24-test")));
+        assert_eq!(
+            search(&history, 0, (get_start(), get_end(&history)))
+                .and_then(|time| search(&history, time, (get_end(&history), get_start())))
+                .and_then(|time| search(&history, time, (get_start(), get_end(&history)))),
+            Some(54)
+        );
     }
 }
