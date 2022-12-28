@@ -266,7 +266,7 @@ fn search(
     let mut candidates = Vec::with_capacity(5);
     queue.push(Ranker::new(start, target, start_time));
     while let Some(
-        rank @ Ranker {
+        Ranker {
             position,
             target,
             time,
@@ -312,20 +312,16 @@ fn main() {
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
     let history = ValleyHistory::new(parse(&input));
-    println!("history build time: {}", start_time.elapsed().as_micros());
-    for _ in 0..500 {
-        search(&history, 0, (get_start(), get_end(&history)));
-    }
-    //println!(
-    //    "solution 1: {:?}",
-    //    search(&history, 0, (get_start(), get_end(&history)))
-    //);
-    //println!(
-    //    "solution 2: {:?}",
-    //    search(&history, 0, (get_start(), get_end(&history)))
-    //        .and_then(|time| search(&history, time, (get_end(&history), get_start())))
-    //        .and_then(|time| search(&history, time, (get_start(), get_end(&history)))),
-    //);
+    println!(
+        "solution 1: {:?}",
+        search(&history, 0, (get_start(), get_end(&history)))
+    );
+    println!(
+        "solution 2: {:?}",
+        search(&history, 0, (get_start(), get_end(&history)))
+            .and_then(|time| search(&history, time, (get_end(&history), get_start())))
+            .and_then(|time| search(&history, time, (get_start(), get_end(&history)))),
+    );
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
