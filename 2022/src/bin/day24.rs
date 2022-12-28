@@ -207,26 +207,32 @@ fn adjacent(centre: &(i32, i32)) -> impl Iterator<Item = (i32, i32)> + '_ {
 }
 
 #[derive(Debug, PartialEq, Eq, Ord)]
-struct Ranker<'a> {
+struct Ranker {
     position: (i32, i32),
-    target: &'a (i32, i32),
+    target: (i32, i32),
     time: i32,
+    distance_to_target: i32,
 }
 
-impl Ranker<'_> {
-    fn distance_to_target(&self) -> i32 {
-        let (x, y) = self.position;
-        let (end_x, end_y) = self.target;
-        (end_x - x).abs() + (end_y - y).abs()
+impl Ranker {
+    fn new(position: (i32, i32), target: (i32, i32), time: i32) -> Self {
+        let (x, y) = position;
+        let (end_x, end_y) = target;
+        Ranker {
+            distance_to_target: (end_x - x).abs() + (end_y - y).abs(),
+            position,
+            target,
+            time,
+        }
     }
 }
 
-impl PartialOrd for Ranker<'_> {
+impl PartialOrd for Ranker {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         // other -> self. order matters because we want a min-heap
         other
-            .distance_to_target()
-            .partial_cmp(&self.distance_to_target())
+            .distance_to_target
+            .partial_cmp(&self.distance_to_target)
     }
 }
 
@@ -258,27 +264,24 @@ fn search(
     };
     let mut best = None;
     let mut candidates = Vec::with_capacity(5);
-    queue.push(Ranker {
-        position: start,
-        target: &target,
-        time: start_time,
-    });
+    queue.push(Ranker::new(start, target, start_time));
     while let Some(
         rank @ Ranker {
             position,
             target,
             time,
+            distance_to_target,
         },
     ) = queue.pop()
     {
-        if &position == target {
+        if position == target {
             best = best.or(Some(time)).map(|best_time| min(best_time, time));
             continue;
         }
 
         // bound all branches that are worst than the best found case.
         if let Some(best_time) = best {
-            if best_time < time || best_time < time + rank.distance_to_target() {
+            if best_time < time + distance_to_target {
                 continue;
             }
         }
@@ -287,11 +290,7 @@ fn search(
             adjacent(&position)
                 .filter(|adj| !visited[to_index(adj.0, adj.1, time + 1)])
                 .filter_map(|adj| match history.get(&adj, time + 1) {
-                    HistoryTile::Ground => Some(Ranker {
-                        position: adj,
-                        target,
-                        time: time + 1,
-                    }),
+                    HistoryTile::Ground => Some(Ranker::new(adj, target, time + 1)),
                     HistoryTile::Blizzard => None,
                     HistoryTile::Wall => None,
                 }),
@@ -313,16 +312,20 @@ fn main() {
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
     let history = ValleyHistory::new(parse(&input));
-    println!(
-        "solution 1: {:?}",
-        search(&history, 0, (get_start(), get_end(&history)))
-    );
-    println!(
-        "solution 2: {:?}",
-        search(&history, 0, (get_start(), get_end(&history)))
-            .and_then(|time| search(&history, time, (get_end(&history), get_start())))
-            .and_then(|time| search(&history, time, (get_start(), get_end(&history)))),
-    );
+    println!("history build time: {}", start_time.elapsed().as_micros());
+    for _ in 0..500 {
+        search(&history, 0, (get_start(), get_end(&history)));
+    }
+    //println!(
+    //    "solution 1: {:?}",
+    //    search(&history, 0, (get_start(), get_end(&history)))
+    //);
+    //println!(
+    //    "solution 2: {:?}",
+    //    search(&history, 0, (get_start(), get_end(&history)))
+    //        .and_then(|time| search(&history, time, (get_end(&history), get_start())))
+    //        .and_then(|time| search(&history, time, (get_start(), get_end(&history)))),
+    //);
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
