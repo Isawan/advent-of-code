@@ -9,8 +9,8 @@ use nom::{
 };
 use regex::Regex;
 use std::{
-    cmp::max,
-    collections::{BinaryHeap, VecDeque},
+    cmp::{max, Reverse},
+    collections::{BTreeMap, BTreeSet, BinaryHeap, VecDeque},
     time::Instant,
 };
 use structopt::StructOpt;
@@ -153,7 +153,7 @@ fn blueprint(input: &str) -> IResult<&str, (BlueprintID, Blueprint)> {
     )(input)
 }
 
-fn consume(resources: &Resources, cost: BotCost) -> Option<Resources> {
+fn consume(resources: &Resources, cost: &BotCost) -> Option<Resources> {
     match (
         resources.ore.checked_sub(cost.ore),
         resources.clay.checked_sub(cost.clay),
@@ -170,57 +170,65 @@ fn consume(resources: &Resources, cost: BotCost) -> Option<Resources> {
     }
 }
 
-fn decisions(state: State, blueprint: Blueprint, buffer: &mut Vec<State>) {
-    buffer.extend(
-        [
-            consume(&state.resources, blueprint.ore).map(|resources| State {
-                minutes: state.minutes + 1,
-                resources: resources.produce(&state.bots),
-                bots: Bots {
-                    ore: state.bots.ore + 1,
-                    clay: state.bots.clay,
-                    obsidian: state.bots.obsidian,
-                    geode: state.bots.geode,
-                },
-            }),
-            consume(&state.resources, blueprint.clay).map(|resources| State {
-                minutes: state.minutes + 1,
-                resources: resources.produce(&state.bots),
-                bots: Bots {
-                    ore: state.bots.ore,
-                    clay: state.bots.clay + 1,
-                    obsidian: state.bots.obsidian,
-                    geode: state.bots.geode,
-                },
-            }),
-            consume(&state.resources, blueprint.obsidian).map(|resources| State {
-                minutes: state.minutes + 1,
-                resources: resources.produce(&state.bots),
-                bots: Bots {
-                    ore: state.bots.ore,
-                    clay: state.bots.clay,
-                    obsidian: state.bots.obsidian + 1,
-                    geode: state.bots.geode,
-                },
-            }),
-            consume(&state.resources, blueprint.geode).map(|resources| State {
-                minutes: state.minutes + 1,
-                resources: resources.produce(&state.bots),
-                bots: Bots {
-                    ore: state.bots.ore,
-                    clay: state.bots.clay,
-                    obsidian: state.bots.obsidian,
-                    geode: state.bots.geode + 1,
-                },
-            }),
-            Some(State {
+fn excess_production(state: &State, bp: &Blueprint) -> bool {
+    consume
+}
+
+fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
+    let try_ore = consume(&state.resources, &blueprint.ore).map(|resources| State {
+        minutes: state.minutes + 1,
+        resources: resources.produce(&state.bots),
+        bots: Bots {
+            ore: state.bots.ore + 1,
+            clay: state.bots.clay,
+            obsidian: state.bots.obsidian,
+            geode: state.bots.geode,
+        },
+    });
+    let try_clay = consume(&state.resources, &blueprint.clay).map(|resources| State {
+        minutes: state.minutes + 1,
+        resources: resources.produce(&state.bots),
+        bots: Bots {
+            ore: state.bots.ore,
+            clay: state.bots.clay + 1,
+            obsidian: state.bots.obsidian,
+            geode: state.bots.geode,
+        },
+    });
+    let try_obsidian = consume(&state.resources, &blueprint.obsidian).map(|resources| State {
+        minutes: state.minutes + 1,
+        resources: resources.produce(&state.bots),
+        bots: Bots {
+            ore: state.bots.ore,
+            clay: state.bots.clay,
+            obsidian: state.bots.obsidian + 1,
+            geode: state.bots.geode,
+        },
+    });
+    let try_geode = consume(&state.resources, &blueprint.geode).map(|resources| State {
+        minutes: state.minutes + 1,
+        resources: resources.produce(&state.bots),
+        bots: Bots {
+            ore: state.bots.ore,
+            clay: state.bots.clay,
+            obsidian: state.bots.obsidian,
+            geode: state.bots.geode + 1,
+        },
+    });
+    match (&try_ore, &try_clay, &try_obsidian, &try_geode) {
+        (Some(_), Some(_), Some(_), Some(_)) => (),
+        _ => {
+            buffer.push(State {
                 minutes: state.minutes + 1,
                 resources: state.resources.produce(&state.bots),
                 bots: state.bots,
-            }),
-        ]
-        .iter()
-        .filter_map(|e| e.clone()),
+            });
+        }
+    }
+    buffer.extend(
+        [try_ore, try_clay, try_obsidian, try_geode]
+            .iter()
+            .filter_map(|e| e.clone()),
     )
 }
 
@@ -238,34 +246,59 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
     };
     let mut decision_buffer = Vec::new();
     let mut best_geode = None;
+    let mut count = 0;
     queue.push(init_state);
     while let Some(state) = queue.pop() {
+        count += 1;
         if state.minutes == minutes {
+            let previous = best_geode.clone();
             best_geode = best_geode
                 .or(Some(state.resources.geode))
                 .map(|g| max(state.resources.geode, g));
+            if previous != best_geode {
+                println!("best found: {:?}, count: {}", best_geode, count);
+            }
             continue;
         }
 
         //println!("state {:?}:, best: {:?}", state, best_geode);
         if let Some(best) = best_geode {
             let remaining_mins = minutes - state.minutes;
-            // overestimate by assuming all bot build happens instantly
-            // // even better would be arithmetric growth of obsidian
-            // // i.e. new bot every minute all the way to the end
-            let ideal_obsidian =
-                state.resources.obsidian + (state.bots.obsidian + remaining_mins) * remaining_mins;
-            if ideal_obsidian <= best {
+            // over-estimate best outcome using arithmetric growth of geode
+            // i.e. new bot every minute all the way to the end
+            let ideal_geode = state.resources.geode * (remaining_mins + 1)
+                + remaining_mins * (remaining_mins + 1) / 2;
+            if ideal_geode <= best {
                 continue;
             }
         }
 
-        decisions(state, blueprint.clone(), &mut decision_buffer);
+        // ignore candidates with excess resource production
+        //if excess_production(&state, &blueprint) {
+        //    continue;
+        //}
+
+        decisions(state, &blueprint, &mut decision_buffer);
         for decision in decision_buffer.drain(..) {
             queue.push(decision);
         }
     }
+    println!("explored options: {}", count);
     best_geode.unwrap()
+}
+
+fn score_blueprint(input: &str) -> u32 {
+    let start_resource = Resources {
+        ore: 0,
+        clay: 0,
+        obsidian: 0,
+        geode: 0,
+    };
+    input
+        .lines()
+        .map(|line| blueprint(line).unwrap())
+        .map(|(_, (id, blueprint))| id * search(start_resource.clone(), blueprint, 24))
+        .sum()
 }
 
 fn main() {
@@ -273,13 +306,14 @@ fn main() {
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
     let (_, (_id, blueprint)) = blueprint(
-        "Blueprint 1:
-        Each ore robot costs 4 ore.
-        Each clay robot costs 2 ore.
-        Each obsidian robot costs 3 ore and 14 clay.
-        Each geode robot costs 2 ore and 7 obsidian.",
+        "Blueprint 2:
+        Each ore robot costs 2 ore.
+        Each clay robot costs 3 ore.
+        Each obsidian robot costs 3 ore and 8 clay.
+        Each geode robot costs 3 ore and 12 obsidian.",
     )
     .unwrap();
+
     println!(
         "{}",
         search(
@@ -321,5 +355,11 @@ mod tests {
             ),
             9
         );
+    }
+
+    #[test]
+    fn test_score() {
+        let input = include_str!("../../input/day19-test");
+        assert_eq!(score_blueprint(input), 33);
     }
 }
