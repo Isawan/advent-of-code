@@ -7,10 +7,12 @@ use nom::{
     sequence::{delimited, separated_pair, tuple},
     IResult,
 };
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
 use std::{
     cmp::{max, Reverse},
-    collections::{BTreeMap, BTreeSet, BinaryHeap, VecDeque},
+    collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque},
+    hash::Hash,
     time::Instant,
 };
 use structopt::StructOpt;
@@ -21,14 +23,15 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct State {
     bots: Bots,
     resources: Resources,
     minutes: u32,
+    could_move: [bool; 4],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct Resources {
     geode: u32,
     obsidian: u32,
@@ -45,9 +48,12 @@ impl Resources {
             geode: self.geode + bots.geode,
         }
     }
+    fn contains(&self, n: u32) -> bool {
+        self.geode == n || self.obsidian == n || self.clay == n || self.ore == n
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct Bots {
     geode: u32,
     obsidian: u32,
@@ -55,7 +61,7 @@ struct Bots {
     ore: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 struct BotCost {
     geode: u32,
     obsidian: u32,
@@ -170,63 +176,72 @@ fn consume(resources: &Resources, cost: &BotCost) -> Option<Resources> {
     }
 }
 
-fn excess_production(state: &State, bp: &Blueprint) -> bool {
-    consume
-}
-
 fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
-    let try_ore = consume(&state.resources, &blueprint.ore).map(|resources| State {
+    let try_ore = consume(&state.resources, &blueprint.ore)
+        .filter(|_| !state.could_move[0])
+        .map(|resources| State {
+            minutes: state.minutes + 1,
+            resources: resources.produce(&state.bots),
+            could_move: [false; 4],
+            bots: Bots {
+                ore: state.bots.ore + 1,
+                clay: state.bots.clay,
+                obsidian: state.bots.obsidian,
+                geode: state.bots.geode,
+            },
+        });
+    let try_clay = consume(&state.resources, &blueprint.clay)
+        .filter(|_| !state.could_move[1])
+        .map(|resources| State {
+            minutes: state.minutes + 1,
+            resources: resources.produce(&state.bots),
+            could_move: [false; 4],
+            bots: Bots {
+                ore: state.bots.ore,
+                clay: state.bots.clay + 1,
+                obsidian: state.bots.obsidian,
+                geode: state.bots.geode,
+            },
+        });
+    let try_obsidian = consume(&state.resources, &blueprint.obsidian)
+        .filter(|_| !state.could_move[2])
+        .map(|resources| State {
+            minutes: state.minutes + 1,
+            resources: resources.produce(&state.bots),
+            could_move: [false; 4],
+            bots: Bots {
+                ore: state.bots.ore,
+                clay: state.bots.clay,
+                obsidian: state.bots.obsidian + 1,
+                geode: state.bots.geode,
+            },
+        });
+    let try_geode = consume(&state.resources, &blueprint.geode)
+        .filter(|_| !state.could_move[3])
+        .map(|resources| State {
+            minutes: state.minutes + 1,
+            resources: resources.produce(&state.bots),
+            could_move: [false; 4],
+            bots: Bots {
+                ore: state.bots.ore,
+                clay: state.bots.clay,
+                obsidian: state.bots.obsidian,
+                geode: state.bots.geode + 1,
+            },
+        });
+    let no_bot = Some(State {
         minutes: state.minutes + 1,
-        resources: resources.produce(&state.bots),
-        bots: Bots {
-            ore: state.bots.ore + 1,
-            clay: state.bots.clay,
-            obsidian: state.bots.obsidian,
-            geode: state.bots.geode,
-        },
+        resources: state.resources.produce(&state.bots),
+        could_move: [
+            state.could_move[0] || try_ore.is_some(),
+            state.could_move[1] || try_clay.is_some(),
+            state.could_move[2] || try_obsidian.is_some(),
+            state.could_move[3] || try_geode.is_some(),
+        ],
+        bots: state.bots,
     });
-    let try_clay = consume(&state.resources, &blueprint.clay).map(|resources| State {
-        minutes: state.minutes + 1,
-        resources: resources.produce(&state.bots),
-        bots: Bots {
-            ore: state.bots.ore,
-            clay: state.bots.clay + 1,
-            obsidian: state.bots.obsidian,
-            geode: state.bots.geode,
-        },
-    });
-    let try_obsidian = consume(&state.resources, &blueprint.obsidian).map(|resources| State {
-        minutes: state.minutes + 1,
-        resources: resources.produce(&state.bots),
-        bots: Bots {
-            ore: state.bots.ore,
-            clay: state.bots.clay,
-            obsidian: state.bots.obsidian + 1,
-            geode: state.bots.geode,
-        },
-    });
-    let try_geode = consume(&state.resources, &blueprint.geode).map(|resources| State {
-        minutes: state.minutes + 1,
-        resources: resources.produce(&state.bots),
-        bots: Bots {
-            ore: state.bots.ore,
-            clay: state.bots.clay,
-            obsidian: state.bots.obsidian,
-            geode: state.bots.geode + 1,
-        },
-    });
-    match (&try_ore, &try_clay, &try_obsidian, &try_geode) {
-        (Some(_), Some(_), Some(_), Some(_)) => (),
-        _ => {
-            buffer.push(State {
-                minutes: state.minutes + 1,
-                resources: state.resources.produce(&state.bots),
-                bots: state.bots,
-            });
-        }
-    }
     buffer.extend(
-        [try_ore, try_clay, try_obsidian, try_geode]
+        [try_ore, try_clay, try_obsidian, try_geode, no_bot]
             .iter()
             .filter_map(|e| e.clone()),
     )
@@ -237,6 +252,7 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
     let init_state = State {
         minutes: 0,
         resources,
+        could_move: [false; 4],
         bots: Bots {
             ore: 1,
             clay: 0,
@@ -250,14 +266,12 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
     queue.push(init_state);
     while let Some(state) = queue.pop() {
         count += 1;
+        count += 1;
         if state.minutes == minutes {
             let previous = best_geode.clone();
             best_geode = best_geode
                 .or(Some(state.resources.geode))
                 .map(|g| max(state.resources.geode, g));
-            if previous != best_geode {
-                println!("best found: {:?}, count: {}", best_geode, count);
-            }
             continue;
         }
 
@@ -273,17 +287,12 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
             }
         }
 
-        // ignore candidates with excess resource production
-        //if excess_production(&state, &blueprint) {
-        //    continue;
-        //}
-
         decisions(state, &blueprint, &mut decision_buffer);
         for decision in decision_buffer.drain(..) {
             queue.push(decision);
         }
     }
-    println!("explored options: {}", count);
+    println!("count: {}", count);
     best_geode.unwrap()
 }
 
@@ -294,39 +303,24 @@ fn score_blueprint(input: &str) -> u32 {
         obsidian: 0,
         geode: 0,
     };
-    input
-        .lines()
+    let lines: Vec<&str> = input.lines().collect();
+    lines
+        .par_iter()
         .map(|line| blueprint(line).unwrap())
         .map(|(_, (id, blueprint))| id * search(start_resource.clone(), blueprint, 24))
         .sum()
 }
 
 fn main() {
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .build_global()
+        .unwrap();
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let start_time = Instant::now();
-    let (_, (_id, blueprint)) = blueprint(
-        "Blueprint 2:
-        Each ore robot costs 2 ore.
-        Each clay robot costs 3 ore.
-        Each obsidian robot costs 3 ore and 8 clay.
-        Each geode robot costs 3 ore and 12 obsidian.",
-    )
-    .unwrap();
 
-    println!(
-        "{}",
-        search(
-            Resources {
-                ore: 0,
-                clay: 0,
-                obsidian: 0,
-                geode: 0
-            },
-            blueprint,
-            24
-        )
-    );
+    println!("solution 1: {}", score_blueprint(&input));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
