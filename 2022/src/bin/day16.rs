@@ -56,24 +56,22 @@ type RemainingTime = u32;
 type TotalFlowRate = u32;
 type Pressure = u32;
 
-type MyPosition<'a> = State<'a>;
-type ElephantPosition<'a> = State<'a>;
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct State<'a> {
     destination: &'a str,
     arrival_at_remaining_time: u32,
 }
 
-fn distance(map: &BTreeMap<&str, Valve>, from: &str, to: &str) -> Option<u32> {
-    let mut heap = BinaryHeap::new();
+fn distance<'a>(
+    map: &BTreeMap<&'a str, Valve<'a>>,
+    from: &'a str,
+    to_buffer: &mut Vec<(&'a str, u32)>,
+) {
+    let mut heap = BinaryHeap::with_capacity(map.len());
     let mut visited = BTreeSet::new();
     heap.push((Reverse(0), from));
-    loop {
-        let (Reverse(dist), position) = heap.pop()?;
-        if position == to {
-            return Some(dist);
-        }
+    while let Some((Reverse(dist), position)) = heap.pop() {
+        to_buffer.push((position, dist));
         for next_position in map.get(position).unwrap().tunnels.iter() {
             if visited.contains(next_position) {
                 continue;
@@ -84,9 +82,23 @@ fn distance(map: &BTreeMap<&str, Valve>, from: &str, to: &str) -> Option<u32> {
     }
 }
 
+fn distance_cache<'a, 'b: 'a>(
+    map: &'b BTreeMap<&'a str, Valve>,
+) -> HashMap<(&'a str, &'a str), u32> {
+    let mut to_buffer = Vec::with_capacity(map.len());
+    let mut result = HashMap::new();
+    for from in map.keys() {
+        distance(map, from, &mut to_buffer);
+        for (to, dist) in to_buffer.iter() {
+            result.insert((*from, *to), *dist);
+        }
+    }
+    result
+}
+
 fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pressure {
     let mut queue: BinaryHeap<(
-        Reverse<Pressure>,
+        Pressure,
         TotalFlowRate,
         RemainingTime,
         NonZeroPositions,
@@ -102,25 +114,18 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
             .filter_map(|(k, v)| if v.flow_rate != 0 { Some(k) } else { None }),
     );
     queue.push((
-        Reverse(0),
+        0,
         0,
         time,
         nonzero_positions,
         current_position,
         vec![current_position],
     ));
-    let mut distance_cache = HashMap::new();
-    let max_heap_size = 10000;
+    let distance_cache = distance_cache(map);
     loop {
-        if let Some((Reverse(pressure), total_flow_rate, remaining_time, non_zeros, curr, path)) =
+        if let Some((pressure, total_flow_rate, remaining_time, non_zeros, curr, path)) =
             queue.pop()
         {
-            // trim the queue to keep the heap managable
-            // does not garuntee accuracy but good enough
-            while queue.len() > max_heap_size {
-                queue.pop();
-            }
-
             // out of time
             if remaining_time == 0 {
                 best_pressure = max(best_pressure, pressure);
@@ -143,12 +148,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
             // start by finding candidate locations
             for next_position in non_zeros.iter() {
                 let next_valve = map.get(next_position).unwrap();
-                let travel_time = distance_cache
-                    .entry((curr, next_position.clone()))
-                    .or_insert(distance(map, curr, next_position).unwrap())
-                    .clone();
-
-                //let travel_time = distance(map, curr, next_position).unwrap();
+                let travel_time = *distance_cache.get(&(curr, next_position.clone())).unwrap();
 
                 let mut next_path = path.clone();
                 next_path.push(&next_position);
@@ -167,7 +167,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
                     pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
 
                 queue.push((
-                    Reverse(next_pressure),
+                    next_pressure,
                     total_flow_rate + next_valve.flow_rate,
                     remaining_time - 1 - travel_time, // time travelling minus one to open the valve
                     new_non_zeros,
@@ -182,212 +182,12 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
     best_pressure
 }
 
-fn elephant_search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pressure {
-    let mut queue: BinaryHeap<(
-        Reverse<Pressure>,
-        TotalFlowRate,
-        RemainingTime,
-        NonZeroPositions,
-        MyPosition,
-        ElephantPosition,
-    )> = BinaryHeap::new();
-    let max_heap_size = 100000;
-    let mut nonzero_positions = BTreeSet::new();
-    let mut best_pressure = 0;
-    let full_pressure: u32 = map.values().map(|x| x.flow_rate).sum();
-    nonzero_positions.extend(
-        map.iter()
-            .filter_map(|(k, v)| if v.flow_rate != 0 { Some(k) } else { None }),
-    );
-    queue.push((
-        Reverse(0),
-        0,
-        time,
-        nonzero_positions,
-        State {
-            destination: current_position,
-            arrival_at_remaining_time: 0,
-        },
-        State {
-            destination: current_position,
-            arrival_at_remaining_time: 0,
-        },
-    ));
-    let mut distance_cache: HashMap<(&str, &str), u32> = HashMap::new();
-    loop {
-        if let Some((
-            Reverse(pressure),
-            total_flow_rate,
-            remaining_time,
-            non_zeros,
-            mine,
-            elephant,
-        )) = queue.pop()
-        {
-            // trim the queue to keep the heap managable
-            // does not garuntee accuracy but good enough
-            while queue.len() > max_heap_size {
-                queue.pop();
-            }
-
-            // out of time
-            if remaining_time == 0 {
-                best_pressure = max(best_pressure, pressure);
-                continue;
-            }
-
-            // we've opened everything, just watch
-            if non_zeros.len() == 0 {
-                assert_eq!(full_pressure, total_flow_rate);
-                best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
-                continue;
-            }
-
-            // remove some impossible cases
-            if pressure + full_pressure * remaining_time < best_pressure {
-                continue;
-            }
-
-            //            // start by figuring out who's ready for work
-            //            if mine.arrival_at_remaining_time == remaining_time {
-            //                for next_position in non_zeros.iter() {
-            //                    let next_valve = map.get(next_position).unwrap();
-            //                    let travel_time = distance_cache
-            //                        .entry((mine.destination, next_position.clone()))
-            //                        .or_insert(distance(map, curr, next_position).unwrap())
-            //                        .clone();
-            //
-            //                    //let travel_time = distance(map, curr, next_position).unwrap();
-            //
-            //                    let mut next_path = path.clone();
-            //                    next_path.push(&next_position);
-            //
-            //                    let mut new_non_zeros = non_zeros.clone();
-            //                    new_non_zeros.remove(next_position);
-            //
-            //                    // don't travel if we're not going to get to the destination.
-            //                    // Just calculate remaining total pressure and stop this branch
-            //                    if remaining_time <= travel_time {
-            //                        best_pressure =
-            //                            max(best_pressure, pressure + total_flow_rate * remaining_time);
-            //                        continue;
-            //                    }
-            //
-            //                    let next_pressure =
-            //                        pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
-            //
-            //                    queue.push((
-            //                        Reverse(next_pressure),
-            //                        total_flow_rate + next_valve.flow_rate,
-            //                        remaining_time - 1 - travel_time, // time travelling minus one to open the valve
-            //                        new_non_zeros,
-            //                        next_position,
-            //                        next_path,
-            //                    ));
-            //                }
-            //            } else if elephant.arrival_at_remaining_time == remaining_time {
-            //            } else {
-            //                // both are ready for work
-            //            }
-
-            // leaving valve location down a tunnel
-            // start by finding candidate locations
-            for next_position in non_zeros.iter() {
-                //let next_valve = map.get(next_position).unwrap();
-                //let travel_time = distance_cache
-                //    .entry((curr, next_position.clone()))
-                //    .or_insert(distance(map, curr, next_position).unwrap())
-                //    .clone();
-
-                ////let travel_time = distance(map, curr, next_position).unwrap();
-
-                //let mut next_path = path.clone();
-                //next_path.push(&next_position);
-
-                //let mut new_non_zeros = non_zeros.clone();
-                //new_non_zeros.remove(next_position);
-
-                //// don't travel if we're not going to get to the destination.
-                //// Just calculate remaining total pressure and stop this branch
-                //if remaining_time <= travel_time {
-                //    best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
-                //    continue;
-                //}
-
-                //let next_pressure =
-                //    pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
-
-                //queue.push((
-                //    Reverse(next_pressure),
-                //    total_flow_rate + next_valve.flow_rate,
-                //    remaining_time - 1 - travel_time, // time travelling minus one to open the valve
-                //    new_non_zeros,
-                //    next_position,
-                //    next_path,
-                //));
-            }
-        } else {
-            break;
-        }
-    }
-    best_pressure
-}
-
-// fn assign_single_work<'a>(
-//     map: &BTreeMap<&str, Valve>,
-//     distance_cache: &mut BTreeMap<(&str, &str), u32>,
-//     pressure: Pressure,
-//     total_flow_rate: TotalFlowRate,
-//     remaining_time: RemainingTime,
-//     non_zeros: NonZeroPositions,
-//     next_position: &'a str,
-//     active_worker: State,
-//     passive_worker: State,
-// ) -> Option<(
-//     Pressure,
-//     TotalFlowRate,
-//     RemainingTime,
-//     NonZeroPositions<'a>,
-//     State<'a>,
-//     State<'a>,
-// )> {
-//     let next_valve = map.get(next_position).unwrap();
-//     // nab the distance using the cache if possible; calculating the entry otherwise
-//     let travel_time = distance_cache
-//         .entry((active_worker.destination, next_position.clone()))
-//         .or_insert(distance(map, active_worker.destination, next_position).unwrap())
-//         .clone();
-//
-//     let mut new_non_zeros = non_zeros.clone();
-//     new_non_zeros.remove(next_position);
-//
-//     // don't travel if we're not going to get to the destination.
-//     // Just calculate remaining total pressure and stop this branch
-//     if remaining_time <= travel_time {
-//         best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
-//         continue;
-//     }
-//
-//     //let next_pressure =
-//     //    pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
-//
-//     //queue.push((
-//     //    Reverse(next_pressure),
-//     //    total_flow_rate + next_valve.flow_rate,
-//     //    remaining_time - 1 - travel_time, // time travelling minus one to open the valve
-//     //    new_non_zeros,
-//     //    next_position,
-//     //    next_path,
-//     //));
-//     todo!()
-// }
-//
 fn main() {
     let start_time = Instant::now();
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let map = parse(&input);
-    println!("solution 1: {}", search(&map, "aa", args.minutes));
+    println!("solution 1: {}", search(&map, "AA", args.minutes));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
@@ -415,10 +215,12 @@ mod tests {
     fn test_distances() {
         let input = include_str!("../../input/day16-test");
         let map = parse(input);
-        assert_eq!(distance(&map, "AA", "DD"), Some(1));
-        assert_eq!(distance(&map, "AA", "II"), Some(1));
-        assert_eq!(distance(&map, "AA", "BB"), Some(1));
-        assert_eq!(distance(&map, "AA", "CC"), Some(2));
+        let mut to_buffer = Vec::new();
+        distance(&map, "AA", &mut to_buffer);
+        assert!(to_buffer.contains(&("DD", 1)));
+        assert!(to_buffer.contains(&("II", 1)));
+        assert!(to_buffer.contains(&("BB", 1)));
+        assert!(to_buffer.contains(&("CC", 2)));
     }
 
     #[test]
