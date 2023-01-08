@@ -263,7 +263,7 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
 }
 
 fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
-    let mut queue = BinaryHeap::new();
+    let mut queue = Vec::new();
     let init_state = State {
         minutes: 0,
         resources,
