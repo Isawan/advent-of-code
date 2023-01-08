@@ -21,7 +21,7 @@ struct State {
     bots: Bots,
     resources: Resources,
     minutes: u32,
-    could_move: [bool; 4],
+    could_move_previously: [bool; 4],
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -188,11 +188,11 @@ fn excess_bots(bots: &Bots, blueprint: &Blueprint) -> bool {
 
 fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
     let try_ore = consume(&state.resources, &blueprint.ore)
-        .filter(|_| !state.could_move[0])
+        .filter(|_| !state.could_move_previously[0])
         .map(|resources| State {
             minutes: state.minutes + 1,
             resources: resources.produce(&state.bots),
-            could_move: [false; 4],
+            could_move_previously: [false; 4],
             bots: Bots {
                 ore: state.bots.ore + 1,
                 clay: state.bots.clay,
@@ -202,11 +202,11 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
         })
         .filter(|s| !excess_bots(&s.bots, blueprint));
     let try_clay = consume(&state.resources, &blueprint.clay)
-        .filter(|_| !state.could_move[1])
+        .filter(|_| !state.could_move_previously[1])
         .map(|resources| State {
             minutes: state.minutes + 1,
             resources: resources.produce(&state.bots),
-            could_move: [false; 4],
+            could_move_previously: [false; 4],
             bots: Bots {
                 ore: state.bots.ore,
                 clay: state.bots.clay + 1,
@@ -216,11 +216,11 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
         })
         .filter(|s| !excess_bots(&s.bots, blueprint));
     let try_obsidian = consume(&state.resources, &blueprint.obsidian)
-        .filter(|_| !state.could_move[2])
+        .filter(|_| !state.could_move_previously[2])
         .map(|resources| State {
             minutes: state.minutes + 1,
             resources: resources.produce(&state.bots),
-            could_move: [false; 4],
+            could_move_previously: [false; 4],
             bots: Bots {
                 ore: state.bots.ore,
                 clay: state.bots.clay,
@@ -230,11 +230,11 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
         })
         .filter(|s| !excess_bots(&s.bots, blueprint));
     let try_geode = consume(&state.resources, &blueprint.geode)
-        .filter(|_| !state.could_move[3])
+        .filter(|_| !state.could_move_previously[3])
         .map(|resources| State {
             minutes: state.minutes + 1,
             resources: resources.produce(&state.bots),
-            could_move: [false; 4],
+            could_move_previously: [false; 4],
             bots: Bots {
                 ore: state.bots.ore,
                 clay: state.bots.clay,
@@ -246,11 +246,11 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
     let no_bot = Some(State {
         minutes: state.minutes + 1,
         resources: state.resources.produce(&state.bots),
-        could_move: [
-            state.could_move[0] || try_ore.is_some(),
-            state.could_move[1] || try_clay.is_some(),
-            state.could_move[2] || try_obsidian.is_some(),
-            state.could_move[3] || try_geode.is_some(),
+        could_move_previously: [
+            state.could_move_previously[0] || try_ore.is_some(),
+            state.could_move_previously[1] || try_clay.is_some(),
+            state.could_move_previously[2] || try_obsidian.is_some(),
+            state.could_move_previously[3] || try_geode.is_some(),
         ],
         bots: state.bots,
     })
@@ -267,7 +267,7 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
     let init_state = State {
         minutes: 0,
         resources,
-        could_move: [false; 4],
+        could_move_previously: [false; 4],
         bots: Bots {
             ore: 1,
             clay: 0,
