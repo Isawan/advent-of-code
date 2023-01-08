@@ -262,7 +262,7 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
     };
     let mut decision_buffer = Vec::new();
     let mut best_geode = None;
-    let mut count = 0;
+    let mut count: u64 = 0;
     queue.push(init_state);
     while let Some(state) = queue.pop() {
         count += 1;
@@ -292,7 +292,6 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
             queue.push(decision);
         }
     }
-    println!("count: {}", count);
     best_geode.unwrap()
 }
 
@@ -311,6 +310,21 @@ fn score_blueprint(input: &str) -> u32 {
         .sum()
 }
 
+fn score_stolen(input: &str) -> u32 {
+    let start_resource = Resources {
+        ore: 0,
+        clay: 0,
+        obsidian: 0,
+        geode: 0,
+    };
+    let lines: Vec<&str> = input.lines().take(3).collect();
+    lines
+        .par_iter()
+        .map(|line| blueprint(line).unwrap())
+        .map(|(_, (id, blueprint))| search(start_resource.clone(), blueprint, 32))
+        .reduce(|| 1, |a, x| a * x)
+}
+
 fn main() {
     rayon::ThreadPoolBuilder::new()
         .num_threads(4)
@@ -321,6 +335,7 @@ fn main() {
     let start_time = Instant::now();
 
     println!("solution 1: {}", score_blueprint(&input));
+    println!("solution 2: {}", score_stolen(&input));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
