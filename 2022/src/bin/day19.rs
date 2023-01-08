@@ -298,11 +298,8 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
     };
     let mut decision_buffer = Vec::new();
     let mut best_geode = None;
-    let mut count: u64 = 0;
     queue.push(init_state);
     while let Some(state) = queue.pop() {
-        count += 1;
-        count += 1;
         if state.minutes == minutes {
             let previous = best_geode.clone();
             best_geode = best_geode
@@ -311,7 +308,6 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
             continue;
         }
 
-        //println!("state {:?}:, best: {:?}", state, best_geode);
         if let Some(best) = best_geode {
             let remaining_mins = minutes - state.minutes;
             // over-estimate best outcome using arithmetric growth of geode
