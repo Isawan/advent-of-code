@@ -3,18 +3,11 @@ use nom::{
     character::complete::{self, multispace0},
     combinator::map,
     error::ParseError,
-    multi::fold_many0,
     sequence::{delimited, separated_pair, tuple},
     IResult,
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-use regex::Regex;
-use std::{
-    cmp::{max, Reverse},
-    collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque},
-    hash::Hash,
-    time::Instant,
-};
+use std::{cmp::max, collections::BinaryHeap, hash::Hash, time::Instant};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -48,9 +41,6 @@ impl Resources {
             geode: self.geode + bots.geode,
         }
     }
-    fn contains(&self, n: u32) -> bool {
-        self.geode == n || self.obsidian == n || self.clay == n || self.ore == n
-    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -75,17 +65,6 @@ struct Blueprint {
     obsidian: BotCost,
     clay: BotCost,
     ore: BotCost,
-}
-
-impl BotCost {
-    fn add(&self, other: &Self) -> Self {
-        BotCost {
-            ore: self.ore + other.ore,
-            clay: self.clay + other.clay,
-            obsidian: self.obsidian + other.obsidian,
-            geode: self.geode + other.geode,
-        }
-    }
 }
 
 type BlueprintID = u32;
@@ -301,7 +280,6 @@ fn search(resources: Resources, blueprint: Blueprint, minutes: u32) -> u32 {
     queue.push(init_state);
     while let Some(state) = queue.pop() {
         if state.minutes == minutes {
-            let previous = best_geode.clone();
             best_geode = best_geode
                 .or(Some(state.resources.geode))
                 .map(|g| max(state.resources.geode, g));
@@ -353,7 +331,7 @@ fn score_stolen(input: &str) -> u32 {
     lines
         .par_iter()
         .map(|line| blueprint(line).unwrap())
-        .map(|(_, (id, blueprint))| search(start_resource.clone(), blueprint, 32))
+        .map(|(_, (_, blueprint))| search(start_resource.clone(), blueprint, 32))
         .reduce(|| 1, |a, x| a * x)
 }
 
