@@ -176,6 +176,37 @@ fn consume(resources: &Resources, cost: &BotCost) -> Option<Resources> {
     }
 }
 
+fn excess_bots(bots: &Bots, blueprint: &Blueprint) -> bool {
+    let max_ore_cost = *[
+        blueprint.ore.ore,
+        blueprint.clay.ore,
+        blueprint.obsidian.ore,
+        blueprint.geode.ore,
+    ]
+    .iter()
+    .max()
+    .unwrap();
+    let max_clay_cost = *[
+        blueprint.ore.clay,
+        blueprint.clay.clay,
+        blueprint.obsidian.clay,
+        blueprint.geode.clay,
+    ]
+    .iter()
+    .max()
+    .unwrap();
+    let max_obsidian_cost = *[
+        blueprint.ore.obsidian,
+        blueprint.clay.obsidian,
+        blueprint.obsidian.obsidian,
+        blueprint.geode.obsidian,
+    ]
+    .iter()
+    .max()
+    .unwrap();
+    bots.ore > max_ore_cost || bots.clay > max_clay_cost || bots.obsidian > max_obsidian_cost
+}
+
 fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
     let try_ore = consume(&state.resources, &blueprint.ore)
         .filter(|_| !state.could_move[0])
@@ -189,7 +220,8 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
                 obsidian: state.bots.obsidian,
                 geode: state.bots.geode,
             },
-        });
+        })
+        .filter(|s| !excess_bots(&s.bots, blueprint));
     let try_clay = consume(&state.resources, &blueprint.clay)
         .filter(|_| !state.could_move[1])
         .map(|resources| State {
@@ -202,7 +234,8 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
                 obsidian: state.bots.obsidian,
                 geode: state.bots.geode,
             },
-        });
+        })
+        .filter(|s| !excess_bots(&s.bots, blueprint));
     let try_obsidian = consume(&state.resources, &blueprint.obsidian)
         .filter(|_| !state.could_move[2])
         .map(|resources| State {
@@ -215,7 +248,8 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
                 obsidian: state.bots.obsidian + 1,
                 geode: state.bots.geode,
             },
-        });
+        })
+        .filter(|s| !excess_bots(&s.bots, blueprint));
     let try_geode = consume(&state.resources, &blueprint.geode)
         .filter(|_| !state.could_move[3])
         .map(|resources| State {
@@ -228,7 +262,8 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
                 obsidian: state.bots.obsidian,
                 geode: state.bots.geode + 1,
             },
-        });
+        })
+        .filter(|s| !excess_bots(&s.bots, blueprint));
     let no_bot = Some(State {
         minutes: state.minutes + 1,
         resources: state.resources.produce(&state.bots),
@@ -239,7 +274,8 @@ fn decisions(state: State, blueprint: &Blueprint, buffer: &mut Vec<State>) {
             state.could_move[3] || try_geode.is_some(),
         ],
         bots: state.bots,
-    });
+    })
+    .filter(|s| !excess_bots(&s.bots, blueprint));
     buffer.extend(
         [try_ore, try_clay, try_obsidian, try_geode, no_bot]
             .iter()
