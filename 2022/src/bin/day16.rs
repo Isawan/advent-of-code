@@ -122,61 +122,56 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
         vec![current_position],
     ));
     let distance_cache = distance_cache(map);
-    loop {
-        if let Some((pressure, total_flow_rate, remaining_time, non_zeros, curr, path)) =
-            queue.pop()
-        {
-            // out of time
-            if remaining_time == 0 {
-                best_pressure = max(best_pressure, pressure);
-                continue;
-            }
+    while let Some((pressure, total_flow_rate, remaining_time, non_zeros, curr, path)) = queue.pop()
+    {
+        // out of time
+        if remaining_time == 0 {
+            best_pressure = max(best_pressure, pressure);
+            continue;
+        }
 
-            // we've opened everything, just watch
-            if non_zeros.len() == 0 {
-                assert_eq!(full_pressure, total_flow_rate);
+        // we've opened everything, just watch
+        if non_zeros.len() == 0 {
+            assert_eq!(full_pressure, total_flow_rate);
+            best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
+            continue;
+        }
+
+        // remove impossible cases
+        // overestimate by assuming max pressure for the remaining time.
+        if pressure + full_pressure * remaining_time < best_pressure {
+            continue;
+        }
+
+        // leaving valve location down a tunnel
+        // start by finding candidate locations
+        for next_position in non_zeros.iter() {
+            let next_valve = map.get(next_position).unwrap();
+            let travel_time = *distance_cache.get(&(curr, next_position.clone())).unwrap();
+
+            let mut next_path = path.clone();
+            next_path.push(&next_position);
+
+            let mut new_non_zeros = non_zeros.clone();
+            new_non_zeros.remove(next_position);
+
+            // don't travel if we're not going to get to the destination.
+            // Just calculate remaining total pressure and stop this branch
+            if remaining_time <= travel_time {
                 best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
                 continue;
             }
 
-            // remove impossible cases
-            if pressure + full_pressure * remaining_time < best_pressure {
-                continue;
-            }
+            let next_pressure = pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
 
-            // leaving valve location down a tunnel
-            // start by finding candidate locations
-            for next_position in non_zeros.iter() {
-                let next_valve = map.get(next_position).unwrap();
-                let travel_time = *distance_cache.get(&(curr, next_position.clone())).unwrap();
-
-                let mut next_path = path.clone();
-                next_path.push(&next_position);
-
-                let mut new_non_zeros = non_zeros.clone();
-                new_non_zeros.remove(next_position);
-
-                // don't travel if we're not going to get to the destination.
-                // Just calculate remaining total pressure and stop this branch
-                if remaining_time <= travel_time {
-                    best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
-                    continue;
-                }
-
-                let next_pressure =
-                    pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
-
-                queue.push((
-                    next_pressure,
-                    total_flow_rate + next_valve.flow_rate,
-                    remaining_time - 1 - travel_time, // time travelling minus one to open the valve
-                    new_non_zeros,
-                    next_position,
-                    next_path,
-                ));
-            }
-        } else {
-            break;
+            queue.push((
+                next_pressure,
+                total_flow_rate + next_valve.flow_rate,
+                remaining_time - 1 - travel_time, // time travelling minus one to open the valve
+                new_non_zeros,
+                next_position,
+                next_path,
+            ));
         }
     }
     best_pressure
