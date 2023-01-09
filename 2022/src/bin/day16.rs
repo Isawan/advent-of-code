@@ -79,7 +79,7 @@ struct State<'a> {
     pressure: u32,
     total_flow_rate: u32,
     remaining_time: u32,
-    non_zero_positions: BTreeSet<&'a str>,
+    to_visit: BTreeSet<&'a str>,
     agents: BinaryHeap<Agent<'a>>,
 }
 
@@ -137,13 +137,13 @@ fn distance_cache<'a, 'b: 'a>(
     result
 }
 
-fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32 {
+fn search(map: &BTreeMap<&str, Valve>, agents: u32, time: u32) -> u32 {
     let mut queue = BinaryHeap::new();
 
-    let mut nonzero_positions = BTreeSet::new();
+    let mut to_visit = BTreeSet::new();
     let mut best_pressure = 0;
     let full_pressure: u32 = map.values().map(|x| x.flow_rate).sum();
-    nonzero_positions.extend(
+    to_visit.extend(
         map.iter()
             .filter_map(|(k, v)| if v.flow_rate != 0 { Some(k) } else { None }),
     );
@@ -154,7 +154,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
         pressure: 0,
         total_flow_rate: 0,
         remaining_time: time,
-        non_zero_positions: nonzero_positions,
+        to_visit,
         agents,
     });
     let distance_cache = distance_cache(map);
@@ -164,7 +164,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
             pressure,
             total_flow_rate,
             remaining_time,
-            non_zero_positions: non_zeros,
+            to_visit,
             agents,
         } = state;
         // out of time
@@ -174,7 +174,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
         }
 
         // we've opened everything, just watch
-        if non_zeros.len() == 0 {
+        if to_visit.len() == 0 {
             assert_eq!(full_pressure, total_flow_rate);
             best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
             continue;
@@ -188,7 +188,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
 
         // leaving valve location down a tunnel
         // start by finding candidate locations
-        for next_position in non_zeros.iter() {
+        for next_position in to_visit.iter() {
             let mut next_agents = agents.clone();
             let Agent {
                 destination: curr, ..
@@ -197,8 +197,8 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
             let next_valve = map.get(next_position).unwrap();
             let travel_time = *distance_cache.get(&(curr, next_position.clone())).unwrap();
 
-            let mut new_non_zeros = non_zeros.clone();
-            new_non_zeros.remove(next_position);
+            let mut new_to_visit = to_visit.clone();
+            new_to_visit.remove(next_position);
 
             // Don't travel if we're not going to get to the destination.
             // If no other agent is active,
@@ -224,7 +224,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
                 pressure: next_pressure,
                 total_flow_rate: total_flow_rate + next_valve.flow_rate,
                 remaining_time,
-                non_zero_positions: new_non_zeros,
+                to_visit: new_to_visit,
                 agents: next_agents,
             });
         }
@@ -237,7 +237,7 @@ fn main() {
     let args = Cli::from_args();
     let input = std::fs::read_to_string(args.path.as_path()).unwrap();
     let map = parse(&input);
-    println!("solution 1: {}", search(&map, "AA", args.minutes));
+    println!("solution 1: {}", search(&map, 1, args.minutes));
     println!("time: {}", start_time.elapsed().as_micros());
 }
 
@@ -255,10 +255,10 @@ mod tests {
     fn test_heap_small_search() {
         let input = include_str!("../../input/day16-test");
         let map = parse(input);
-        assert_eq!(search(&map, "AA", 1), 0);
-        assert_eq!(search(&map, "AA", 2), 0);
-        assert_eq!(search(&map, "AA", 3), 20);
-        assert_eq!(search(&map, "AA", 4), 40);
+        assert_eq!(search(&map, 1, 1), 0);
+        assert_eq!(search(&map, 1, 2), 0);
+        assert_eq!(search(&map, 1, 3), 20);
+        assert_eq!(search(&map, 1, 4), 40);
     }
 
     #[test]
@@ -266,7 +266,7 @@ mod tests {
         let input = include_str!("../../input/day16-test");
         let map = parse(input);
         let mut to_buffer = Vec::new();
-        distance(&map, "AA", &mut to_buffer);
+        distance(&map, 1, &mut to_buffer);
         assert!(to_buffer.contains(&("DD", 1)));
         assert!(to_buffer.contains(&("II", 1)));
         assert!(to_buffer.contains(&("BB", 1)));
@@ -277,6 +277,6 @@ mod tests {
     fn test_heap_big_search() {
         let input = include_str!("../../input/day16-test");
         let map = parse(input);
-        assert_eq!(search(&map, "AA", 30), 1651);
+        assert_eq!(search(&map, 1, 30), 1651);
     }
 }
