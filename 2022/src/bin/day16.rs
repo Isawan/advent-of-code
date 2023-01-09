@@ -80,7 +80,6 @@ struct State<'a> {
     total_flow_rate: u32,
     remaining_time: u32,
     non_zero_positions: BTreeSet<&'a str>,
-    current_position: &'a str,
     agents: BinaryHeap<Agent<'a>>,
 }
 
@@ -156,7 +155,6 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
         total_flow_rate: 0,
         remaining_time: time,
         non_zero_positions: nonzero_positions,
-        current_position,
         agents,
     });
     let distance_cache = distance_cache(map);
@@ -167,7 +165,6 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
             total_flow_rate,
             remaining_time,
             non_zero_positions: non_zeros,
-            current_position: curr,
             agents,
         } = state;
         // out of time
@@ -192,31 +189,43 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
         // leaving valve location down a tunnel
         // start by finding candidate locations
         for next_position in non_zeros.iter() {
+            let mut next_agents = agents.clone();
+            let Agent {
+                destination: curr, ..
+            } = next_agents.pop().unwrap();
+
             let next_valve = map.get(next_position).unwrap();
             let travel_time = *distance_cache.get(&(curr, next_position.clone())).unwrap();
 
             let mut new_non_zeros = non_zeros.clone();
             new_non_zeros.remove(next_position);
 
-            // don't travel if we're not going to get to the destination.
-            // Just calculate remaining total pressure and stop this branch
-            if remaining_time <= travel_time {
+            // Don't travel if we're not going to get to the destination.
+            // If no other agent is active,
+            // just calculate remaining total pressure and remove agent from active set
+            if next_agents.len() == 0 && remaining_time <= travel_time {
                 best_pressure = max(best_pressure, pressure + total_flow_rate * remaining_time);
                 continue;
+            } else {
+                next_agents.push(Agent {
+                    destination: next_position,
+                    arrival_at_remaining_time: remaining_time - 1 - travel_time, // time travelling minus one to open the valve
+                })
             }
 
             let next_pressure = pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
 
-            // TODO: update agent
-            let agents = agents.clone();
+            // grab minimum which is the next time an agent reaches the destination
+            let remaining_time = next_agents
+                .iter()
+                .fold(u32::MAX, |x, agent| min(x, agent.arrival_at_remaining_time));
 
             queue.push(State {
                 pressure: next_pressure,
                 total_flow_rate: total_flow_rate + next_valve.flow_rate,
-                remaining_time: remaining_time - 1 - travel_time, // time travelling minus one to open the valve
+                remaining_time,
                 non_zero_positions: new_non_zeros,
-                current_position: next_position,
-                agents: agents,
+                agents: next_agents,
             });
         }
     }
