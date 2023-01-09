@@ -74,16 +74,36 @@ impl PartialOrd for Agent<'_> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone)]
 struct State<'a> {
     pressure: u32,
     total_flow_rate: u32,
     remaining_time: u32,
     non_zero_positions: BTreeSet<&'a str>,
-    current_position: &'a str,
     path: Vec<&'a str>,
-    //agents: BinaryHeap<Agent<'a>>,
+    current_position: &'a str,
+    agents: BinaryHeap<Agent<'a>>,
 }
+
+impl PartialOrd for State<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.pressure.cmp(&self.pressure))
+    }
+}
+
+impl Ord for State<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl PartialEq for State<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.pressure == other.pressure
+    }
+}
+
+impl Eq for State<'_> {}
 
 fn distance<'a>(
     map: &BTreeMap<&'a str, Valve<'a>>,
@@ -129,6 +149,9 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
         map.iter()
             .filter_map(|(k, v)| if v.flow_rate != 0 { Some(k) } else { None }),
     );
+    let mut agents = BinaryHeap::new();
+    agents.push(Agent::new());
+
     queue.push(State {
         pressure: 0,
         total_flow_rate: 0,
@@ -136,8 +159,10 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
         non_zero_positions: nonzero_positions,
         current_position,
         path: vec![current_position],
+        agents,
     });
     let distance_cache = distance_cache(map);
+
     while let Some(state) = queue.pop() {
         let State {
             pressure,
@@ -146,6 +171,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
             non_zero_positions: non_zeros,
             current_position: curr,
             path,
+            agents,
         } = state;
         // out of time
         if remaining_time == 0 {
@@ -187,6 +213,9 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
 
             let next_pressure = pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
 
+            // TODO: update agent
+            let agents = agents.clone();
+
             queue.push(State {
                 pressure: next_pressure,
                 total_flow_rate: total_flow_rate + next_valve.flow_rate,
@@ -194,6 +223,7 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
                 non_zero_positions: new_non_zeros,
                 current_position: next_position,
                 path: next_path,
+                agents: agents,
             });
         }
     }
