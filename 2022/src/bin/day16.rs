@@ -80,7 +80,6 @@ struct State<'a> {
     total_flow_rate: u32,
     remaining_time: u32,
     non_zero_positions: BTreeSet<&'a str>,
-    path: Vec<&'a str>,
     current_position: &'a str,
     agents: BinaryHeap<Agent<'a>>,
 }
@@ -158,7 +157,6 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
         remaining_time: time,
         non_zero_positions: nonzero_positions,
         current_position,
-        path: vec![current_position],
         agents,
     });
     let distance_cache = distance_cache(map);
@@ -170,7 +168,6 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
             remaining_time,
             non_zero_positions: non_zeros,
             current_position: curr,
-            path,
             agents,
         } = state;
         // out of time
@@ -198,9 +195,6 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
             let next_valve = map.get(next_position).unwrap();
             let travel_time = *distance_cache.get(&(curr, next_position.clone())).unwrap();
 
-            let mut next_path = path.clone();
-            next_path.push(&next_position);
-
             let mut new_non_zeros = non_zeros.clone();
             new_non_zeros.remove(next_position);
 
@@ -222,7 +216,6 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32
                 remaining_time: remaining_time - 1 - travel_time, // time travelling minus one to open the valve
                 non_zero_positions: new_non_zeros,
                 current_position: next_position,
-                path: next_path,
                 agents: agents,
             });
         }
