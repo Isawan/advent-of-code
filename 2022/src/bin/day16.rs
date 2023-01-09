@@ -50,16 +50,39 @@ fn parse<'a>(input: &'a str) -> BTreeMap<&'a str, Valve> {
         .collect()
 }
 
-type NonZeroPositions<'a> = BTreeSet<&'a str>;
-type CurrentPosition<'a> = &'a str;
-type RemainingTime = u32;
-type TotalFlowRate = u32;
-type Pressure = u32;
+#[derive(Debug, Clone, PartialEq, Eq, Ord)]
+struct Agent<'a> {
+    destination: &'a str,
+    arrival_at_remaining_time: u32,
+}
+
+impl Agent<'_> {
+    fn new() -> Self {
+        Agent {
+            destination: "AA",
+            arrival_at_remaining_time: 0,
+        }
+    }
+}
+
+impl PartialOrd for Agent<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(
+            self.arrival_at_remaining_time
+                .cmp(&self.arrival_at_remaining_time),
+        )
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct State<'a> {
-    destination: &'a str,
-    arrival_at_remaining_time: u32,
+    pressure: u32,
+    total_flow_rate: u32,
+    remaining_time: u32,
+    non_zero_positions: BTreeSet<&'a str>,
+    current_position: &'a str,
+    path: Vec<&'a str>,
+    //agents: BinaryHeap<Agent<'a>>,
 }
 
 fn distance<'a>(
@@ -96,15 +119,8 @@ fn distance_cache<'a, 'b: 'a>(
     result
 }
 
-fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pressure {
-    let mut queue: BinaryHeap<(
-        Pressure,
-        TotalFlowRate,
-        RemainingTime,
-        NonZeroPositions,
-        CurrentPosition,
-        Vec<&str>,
-    )> = BinaryHeap::new();
+fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> u32 {
+    let mut queue = BinaryHeap::new();
 
     let mut nonzero_positions = BTreeSet::new();
     let mut best_pressure = 0;
@@ -113,17 +129,24 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
         map.iter()
             .filter_map(|(k, v)| if v.flow_rate != 0 { Some(k) } else { None }),
     );
-    queue.push((
-        0,
-        0,
-        time,
-        nonzero_positions,
+    queue.push(State {
+        pressure: 0,
+        total_flow_rate: 0,
+        remaining_time: time,
+        non_zero_positions: nonzero_positions,
         current_position,
-        vec![current_position],
-    ));
+        path: vec![current_position],
+    });
     let distance_cache = distance_cache(map);
-    while let Some((pressure, total_flow_rate, remaining_time, non_zeros, curr, path)) = queue.pop()
-    {
+    while let Some(state) = queue.pop() {
+        let State {
+            pressure,
+            total_flow_rate,
+            remaining_time,
+            non_zero_positions: non_zeros,
+            current_position: curr,
+            path,
+        } = state;
         // out of time
         if remaining_time == 0 {
             best_pressure = max(best_pressure, pressure);
@@ -164,14 +187,14 @@ fn search(map: &BTreeMap<&str, Valve>, current_position: &str, time: u32) -> Pre
 
             let next_pressure = pressure + (total_flow_rate) + ((total_flow_rate) * travel_time);
 
-            queue.push((
-                next_pressure,
-                total_flow_rate + next_valve.flow_rate,
-                remaining_time - 1 - travel_time, // time travelling minus one to open the valve
-                new_non_zeros,
-                next_position,
-                next_path,
-            ));
+            queue.push(State {
+                pressure: next_pressure,
+                total_flow_rate: total_flow_rate + next_valve.flow_rate,
+                remaining_time: remaining_time - 1 - travel_time, // time travelling minus one to open the valve
+                non_zero_positions: new_non_zeros,
+                current_position: next_position,
+                path: next_path,
+            });
         }
     }
     best_pressure
