@@ -1,0 +1,33 @@
+[package]
+name = "advent-of-code"
+version = "0.1.0"
+authors = ["Isawan Millican <admin@isawan.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "day1"
+path = "src/bin/day1.rs"
+
+
+[dependencies]
+byteorder = "1.5.0"
+clap = { version = "4.4.10", features = ["derive"] }
+hex = "0.4.3"
+itertools = "0.12.0"
+ndarray = "0.15.6"
+nom = "7.1.3"
+rayon = "1.8.0"
+regex = "1.10.2"
+sha2 = "0.10.8"
+# structopt = "0.3.26"
+# regex = "1.7.0"
+# ndarray = "0.15.6"
+# hex = "0.4.3"
+# byteorder = "1.4.3"
+# itertools = "0.10.5"
+# nom = "7.1.1"
+# lazy_static = "1.4.0"
+# sha2 = "0.10.6"
+# rayon = "1.6.1"
