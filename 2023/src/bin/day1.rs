@@ -15,8 +15,7 @@ struct Cli {
 
 fn first_digit(s: &str) -> Option<u32> {
     s.chars()
-        .find(|c| c.is_ascii_digit())
-        .unwrap()
+        .find(|c| c.is_ascii_digit())?
         .to_string()
         .parse::<u32>()
         .ok()
@@ -24,19 +23,16 @@ fn first_digit(s: &str) -> Option<u32> {
 fn last_digit(s: &str) -> Option<u32> {
     s.chars()
         .filter(|c| c.is_ascii_digit())
-        .last()
-        .unwrap()
+        .last()?
         .to_string()
         .parse::<u32>()
         .ok()
 }
 
 fn number_digit(s: &str) -> Option<u32> {
-    let first = first_digit(s);
-    let last = last_digit(s);
-    first
-        .zip(last)
-        .and_then(|(one, two)| format!("{}{}", one, two).parse::<u32>().ok())
+    let first = first_digit(s)?;
+    let last = last_digit(s)?;
+    format!("{}{}", first, last).parse::<u32>().ok()
 }
 
 fn forward_to_digit(s: &str) -> Option<u32> {
@@ -72,13 +68,13 @@ fn word_digit(line: &str) -> Option<u32> {
 
     // handle first digit
     let capture = forward_search.captures(line)?;
-    let word = capture.get(1).unwrap();
+    let word = capture.get(1)?;
     let first = forward_to_digit(word.as_str())?;
 
     // handle last digit
     let reverse_line = line.chars().rev().collect::<String>();
     let capture = backwards_search.captures(&reverse_line)?;
-    let word = capture.get(1).unwrap();
+    let word = capture.get(1)?;
     let last = backwards_to_digit(word.as_str())?;
 
     format!("{}{}", first, last).parse::<u32>().ok()
