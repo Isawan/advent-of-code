@@ -1,6 +1,8 @@
 use clap::{arg, command, Parser};
 use regex::Regex;
+use std::io::Read;
 use std::sync::OnceLock;
+use std::time::Instant;
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -60,10 +62,10 @@ static BACKWARD: OnceLock<Regex> = OnceLock::new();
 
 fn word_digit(line: &str) -> Option<u32> {
     let forward_search = FORWARD.get_or_init(|| {
-        Regex::new(r"(one|two|three|four|five|six|seven|eight|nine|1|2|3|4|5|6|7|8|9)").unwrap()
+        Regex::new(r"(one|two|three|four|five|six|seven|eight|nine|[0-9])").unwrap()
     });
     let backwards_search = BACKWARD.get_or_init(|| {
-        Regex::new(r"(eno|owt|eerht|ruof|evif|xis|neves|thgie|enin|1|2|3|4|5|6|7|8|9)").unwrap()
+        Regex::new(r"(eno|owt|eerht|ruof|evif|xis|neves|thgie|enin|[0-9])").unwrap()
     });
 
     // handle first digit
@@ -80,27 +82,29 @@ fn word_digit(line: &str) -> Option<u32> {
     format!("{}{}", first, last).parse::<u32>().ok()
 }
 
+fn result<R: Read>(reader: BufReader<R>, f: impl Fn(&str) -> Option<u32>) -> Option<u32> {
+    Some(
+        reader
+            .lines()
+            .map(|line| f(&line.unwrap()))
+            .collect::<Option<Vec<u32>>>()?
+            .iter()
+            .sum::<u32>(),
+    )
+}
+
 fn main() {
     let args = Cli::parse();
+    let start = Instant::now();
     let input = File::open(args.path.as_path()).unwrap();
     let reader = BufReader::new(&input);
-    let sum = reader
-        .lines()
-        .map(|line| number_digit(&line.unwrap()))
-        .collect::<Option<Vec<u32>>>()
-        .expect("Error occured")
-        .iter()
-        .sum::<u32>();
+    let sum = result(reader, number_digit).expect("Error occured");
     println!("{:?}", sum);
 
     let input = File::open(args.path.as_path()).unwrap();
     let reader = BufReader::new(&input);
-    let sum = reader
-        .lines()
-        .map(|line| word_digit(&line.unwrap()))
-        .collect::<Option<Vec<u32>>>()
-        .expect("Error occured")
-        .iter()
-        .sum::<u32>();
+    let sum = result(reader, word_digit).expect("Error occured");
     println!("{:?}", sum);
+
+    println!("Time elapsed: {:?}", start.elapsed());
 }
