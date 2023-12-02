@@ -132,21 +132,9 @@ fn max_possible_cubes(game: &Game) -> MaxConstraint {
     game.reveals
         .iter()
         .fold(constraint, |acc, reveal| MaxConstraint {
-            red: if reveal.red == 0 {
-                acc.red
-            } else {
-                std::cmp::max(acc.red, reveal.red)
-            },
-            blue: if reveal.blue == 0 {
-                acc.blue
-            } else {
-                std::cmp::max(acc.blue, reveal.blue)
-            },
-            green: if reveal.green == 0 {
-                acc.green
-            } else {
-                std::cmp::max(acc.green, reveal.green)
-            },
+            red: std::cmp::max(acc.red, reveal.red),
+            blue: std::cmp::max(acc.blue, reveal.blue),
+            green: std::cmp::max(acc.green, reveal.green),
         })
 }
 
