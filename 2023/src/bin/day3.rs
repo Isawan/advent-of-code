@@ -1,4 +1,9 @@
-use std::{collections::BTreeSet, fs::read, thread::current, time::Instant};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    fs::read,
+    thread::current,
+    time::Instant,
+};
 
 use clap::{command, Parser};
 use itertools::Itertools;
@@ -15,15 +20,15 @@ struct Cli {
 enum Tile {
     Period,
     Symbol(char),
-    Number(u8),
+    Number(u32),
 }
 
 impl From<char> for Tile {
     fn from(c: char) -> Self {
         match c {
             '.' => Tile::Period,
-            number if number.is_ascii_digit() => Tile::Number(c.to_digit(10).unwrap() as u8),
-            number => Tile::Symbol(c),
+            number if number.is_ascii_digit() => Tile::Number(c.to_digit(10).unwrap()),
+            c => Tile::Symbol(c),
         }
     }
 }
@@ -80,28 +85,30 @@ fn find_number_coords(schematic: &Schematic) -> Vec<((i32, i32), i32)> {
                 }
             }
         }
+        if let Some(number) = current {
+            number_coords.push(number);
+        }
     }
     number_coords
 }
 
 fn enumerate_surrounding_coords(number_coord: ((i32, i32), i32)) -> Vec<(i32, i32)> {
-    let start = number_coord.0;
-    let end = (number_coord.1, number_coord.0 .1);
+    let ((start_x, y), end_x) = number_coord;
     let mut coords = Vec::new();
     // enumerate start
-    coords.push((start.0 - 1, start.1 - 1));
-    coords.push((start.0 - 1, start.1));
-    coords.push((start.0 - 1, start.1 + 1));
+    coords.push((start_x - 1, y - 1));
+    coords.push((start_x - 1, y));
+    coords.push((start_x - 1, y + 1));
 
     // enumerate end
-    coords.push((end.0 + 1, end.1 - 1));
-    coords.push((end.0 + 1, end.1));
-    coords.push((end.0 + 1, end.1 + 1));
+    coords.push((end_x + 1, y - 1));
+    coords.push((end_x + 1, y));
+    coords.push((end_x + 1, y + 1));
 
     // enumerate above and below
-    for x in (start.0..=end.0) {
-        coords.push((x, start.1 - 1));
-        coords.push((x, end.1 + 1));
+    for x in (start_x..=end_x) {
+        coords.push((x, y - 1));
+        coords.push((x, y + 1));
     }
 
     coords
@@ -115,7 +122,7 @@ fn get_number(schematic: &Schematic, number_coord: ((i32, i32), i32)) -> u32 {
             Tile::Number(v) => v,
             v => panic!("found not a number: {:?}", (x, y, v)),
         })
-        .fold(0, |acc, i| acc * 10 + i as u32) // convert digits to number
+        .fold(0, |acc, i| acc * 10 + i) // convert digits to number
 }
 
 fn sum_of_part_numbers(schematic: &Schematic) -> u32 {
@@ -134,12 +141,46 @@ fn sum_of_part_numbers(schematic: &Schematic) -> u32 {
         .sum()
 }
 
+fn get_gear_ratio(schematic: &Schematic) -> u32 {
+    find_number_coords(schematic)
+        .into_iter()
+        .map(|number| (number, enumerate_surrounding_coords(number)))
+        .flat_map(|(number_coord, surrounding)| {
+            surrounding
+                .into_iter()
+                .filter_map(move |(x, y)| match schematic.get(x, y) {
+                    Tile::Symbol('*') => Some((number_coord, (x, y))),
+                    _ => None,
+                })
+        })
+        .fold(
+            BTreeMap::new(),
+            |mut acc: BTreeMap<(i32, i32), Vec<u32>>, (number_coord, gear)| {
+                acc.entry(gear)
+                    .or_default()
+                    .push(get_number(&schematic, number_coord));
+                acc
+            },
+        )
+        .into_iter()
+        .filter_map(|(gear, number)| {
+            if number.len() == 2 {
+                Some(number[0] * number[1])
+            } else {
+                None
+            }
+        })
+        .sum()
+}
+
 fn main() {
     let args = Cli::parse();
     let start = Instant::now();
     let input = read(args.path.as_path()).unwrap();
     let schematic = Schematic::new(std::str::from_utf8(&input).unwrap()).unwrap();
+    println!("Test: {}", find_number_coords(&schematic).len());
     println!("Part 1: {}", sum_of_part_numbers(&schematic));
+    println!("Part 2: {}", get_gear_ratio(&schematic));
 }
 
 mod tests {
@@ -173,18 +214,22 @@ mod tests {
 
     #[test]
     fn test_enumerate_surrounding_coords() {
-        let number_coord = ((0, 0), 2);
+        let number_coord = ((5, 9), 7);
         let coords = enumerate_surrounding_coords(number_coord);
         println!("{:?}", coords);
         assert_eq!(coords.len(), 12);
-        assert!(coords.contains(&(0, -1)));
-        assert!(coords.contains(&(1, -1)));
-        assert!(coords.contains(&(2, -1)));
-        assert!(coords.contains(&(0, 1)));
-        assert!(coords.contains(&(1, 1)));
-        assert!(coords.contains(&(2, 1)));
-        assert!(coords.contains(&(3, 1)));
-        assert!(coords.contains(&(3, 0)));
+        assert!(coords.contains(&(4, 8)));
+        assert!(coords.contains(&(4, 9)));
+        assert!(coords.contains(&(4, 10)));
+        assert!(coords.contains(&(8, 8)));
+        assert!(coords.contains(&(8, 9)));
+        assert!(coords.contains(&(8, 10)));
+        assert!(coords.contains(&(5, 8)));
+        assert!(coords.contains(&(5, 10)));
+        assert!(coords.contains(&(6, 8)));
+        assert!(coords.contains(&(6, 10)));
+        assert!(coords.contains(&(7, 8)));
+        assert!(coords.contains(&(7, 10)));
     }
 
     #[test]
@@ -192,5 +237,12 @@ mod tests {
         let input = include_str!("../../input/day3-single-digit-example");
         let schematic = Schematic::new(input).unwrap();
         assert_eq!(sum_of_part_numbers(&schematic), 65);
+    }
+
+    #[test]
+    fn test_example_get_gear_ratio() {
+        let input = include_str!("../../input/day3-example");
+        let schematic = Schematic::new(input).unwrap();
+        assert_eq!(get_gear_ratio(&schematic), 467835);
     }
 }
