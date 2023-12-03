@@ -1,13 +1,6 @@
-use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
-    fs::read,
-    thread::current,
-    time::Instant,
-};
+use std::{collections::HashMap, fs::read, time::Instant};
 
 use clap::{command, Parser};
-use itertools::Itertools;
-use nom::number;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -94,7 +87,7 @@ fn find_number_coords(schematic: &Schematic) -> Vec<((i32, i32), i32)> {
 
 fn enumerate_surrounding_coords(number_coord: ((i32, i32), i32)) -> Vec<(i32, i32)> {
     let ((start_x, y), end_x) = number_coord;
-    let mut coords = Vec::new();
+    let mut coords = Vec::with_capacity(6 + (end_x - start_x) as usize * 2);
     // enumerate start
     coords.push((start_x - 1, y - 1));
     coords.push((start_x - 1, y));
@@ -106,7 +99,7 @@ fn enumerate_surrounding_coords(number_coord: ((i32, i32), i32)) -> Vec<(i32, i3
     coords.push((end_x + 1, y + 1));
 
     // enumerate above and below
-    for x in (start_x..=end_x) {
+    for x in start_x..=end_x {
         coords.push((x, y - 1));
         coords.push((x, y + 1));
     }
@@ -132,10 +125,7 @@ fn sum_of_part_numbers(schematic: &Schematic) -> u32 {
         .filter_map(|(number_coord, surrounding)| {
             surrounding
                 .iter()
-                .any(|(x, y)| match schematic.get(*x, *y) {
-                    Tile::Symbol(_) => true,
-                    _ => false,
-                })
+                .any(|(x, y)| matches!(schematic.get(*x, *y), Tile::Symbol(_)))
                 .then(|| get_number(schematic, number_coord))
         })
         .sum()
@@ -154,16 +144,16 @@ fn get_gear_ratio(schematic: &Schematic) -> u32 {
                 })
         })
         .fold(
-            BTreeMap::new(),
-            |mut acc: BTreeMap<(i32, i32), Vec<u32>>, (number_coord, gear)| {
+            HashMap::new(),
+            |mut acc: HashMap<(i32, i32), Vec<u32>>, (number_coord, gear)| {
                 acc.entry(gear)
                     .or_default()
-                    .push(get_number(&schematic, number_coord));
+                    .push(get_number(schematic, number_coord));
                 acc
             },
         )
-        .into_iter()
-        .filter_map(|(gear, number)| {
+        .into_values()
+        .filter_map(|number| {
             if number.len() == 2 {
                 Some(number[0] * number[1])
             } else {
@@ -181,8 +171,10 @@ fn main() {
     println!("Test: {}", find_number_coords(&schematic).len());
     println!("Part 1: {}", sum_of_part_numbers(&schematic));
     println!("Part 2: {}", get_gear_ratio(&schematic));
+    println!("Time elapsed: {:?}", start.elapsed());
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
