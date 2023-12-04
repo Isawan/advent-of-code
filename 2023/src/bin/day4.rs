@@ -20,27 +20,18 @@ struct Cli {
 
 type Card = (u32, (Vec<u32>, Vec<u32>));
 
-fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
-    inner: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
-where
-    F: FnMut(&'a str) -> IResult<&'a str, O, E>,
-{
-    delimited(multispace0, inner, multispace0)
-}
-
 fn t<'a, 'b: 'a>(ss: &'b str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
     delimited(multispace0, tag(ss), multispace0)
 }
 
 fn number(input: &str) -> IResult<&str, u32> {
-    map_res(digit1, str::parse)(input)
+    map_res(delimited(multispace0, digit1, multispace0), str::parse)(input)
 }
 
 fn card(input: &str) -> IResult<&str, Card> {
     pair(
         delimited(t("Card"), number, t(":")),
-        separated_pair(many1(ws(number)), t("|"), many1(ws(number))),
+        separated_pair(many1(number), t("|"), many1(number)),
     )(input)
 }
 
