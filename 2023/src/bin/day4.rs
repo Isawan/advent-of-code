@@ -3,11 +3,11 @@ use std::{collections::HashMap, convert::TryInto, fs::read, time::Instant};
 use clap::{command, Parser};
 use nom::{
     bytes::complete::tag,
-    character::complete::{digit1, multispace0, multispace1},
+    character::complete::{digit1, multispace0},
     combinator::map_res,
     error::ParseError,
     multi::many1,
-    sequence::{delimited, pair, preceded, terminated, tuple},
+    sequence::{delimited, pair, terminated},
     IResult,
 };
 
@@ -17,6 +17,8 @@ struct Cli {
     #[arg(long, short)]
     path: std::path::PathBuf,
 }
+
+type Card = (u32, (Vec<u32>, Vec<u32>));
 
 fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
     inner: F,
@@ -35,14 +37,14 @@ fn number(input: &str) -> IResult<&str, u32> {
     map_res(digit1, str::parse)(input)
 }
 
-fn card(input: &str) -> IResult<&str, (u32, (Vec<u32>, Vec<u32>))> {
+fn card(input: &str) -> IResult<&str, Card> {
     pair(
         delimited(t("Card"), number, t(":")),
         pair(terminated(many1(ws(number)), t("|")), many1(ws(number))),
     )(input)
 }
 
-fn calc_points(card: (u32, (Vec<u32>, Vec<u32>))) -> u32 {
+fn calc_points(card: Card) -> u32 {
     let (_, (winning_numbers, numbers)) = card;
     numbers
         .iter()
@@ -108,7 +110,7 @@ fn main() {
     let f = read(args.path.as_path()).unwrap();
     let input = std::str::from_utf8(&f).unwrap();
     println!("Part 1: {}", part1(input));
-    println!("Part 2: {}", part2(&input));
+    println!("Part 2: {}", part2(input));
     println!("Time elapsed: {:?}", start.elapsed());
 }
 
