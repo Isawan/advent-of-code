@@ -34,17 +34,14 @@ struct Schematic {
 
 impl Schematic {
     fn new(input: &str) -> Option<Self> {
-        let height = input.lines().count() as i32;
-        let width = input.find('\n').unwrap() as i32;
-        let tiles = input
-            .chars()
-            .filter(|c| *c != '\n')
-            .map(Tile::from)
-            .collect();
         Some(Self {
-            tiles,
-            width,
-            height,
+            tiles: input
+                .chars()
+                .filter(|c| *c != '\n')
+                .map(Tile::from)
+                .collect(),
+            width: input.find('\n').unwrap() as i32,
+            height: input.lines().count() as i32,
         })
     }
 
@@ -52,8 +49,7 @@ impl Schematic {
         if x < 0 || y < 0 || x >= self.width || y >= self.height {
             return Tile::Period;
         }
-        let index = (y * self.width + x) as usize;
-        self.tiles[index]
+        self.tiles[(y * self.width + x) as usize]
     }
 }
 
@@ -168,8 +164,7 @@ fn main() {
     let start = Instant::now();
     let input = read(args.path.as_path()).unwrap();
     let schematic = Schematic::new(std::str::from_utf8(&input).unwrap()).unwrap();
-    println!("Test: {}", find_number_coords(&schematic).len());
-    println!("Part 1: {}", sum_of_part_numbers(&schematic));
+    //println!("Part 1: {}", sum_of_part_numbers(&schematic));
     println!("Part 2: {}", get_gear_ratio(&schematic));
     println!("Time elapsed: {:?}", start.elapsed());
 }
