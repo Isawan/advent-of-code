@@ -7,7 +7,7 @@ use nom::{
     combinator::map_res,
     error::ParseError,
     multi::many1,
-    sequence::{delimited, pair, terminated},
+    sequence::{delimited, pair, separated_pair},
     IResult,
 };
 
@@ -40,7 +40,7 @@ fn number(input: &str) -> IResult<&str, u32> {
 fn card(input: &str) -> IResult<&str, Card> {
     pair(
         delimited(t("Card"), number, t(":")),
-        pair(terminated(many1(ws(number)), t("|")), many1(ws(number))),
+        separated_pair(many1(ws(number)), t("|"), many1(ws(number))),
     )(input)
 }
 
