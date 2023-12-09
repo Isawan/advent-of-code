@@ -5,7 +5,6 @@ use nom::{
     bytes::complete::tag,
     character::complete::{digit1, multispace0},
     combinator::map_res,
-    error::ParseError,
     multi::many1,
     sequence::{delimited, pair, separated_pair},
     IResult,

@@ -1,18 +1,14 @@
-use std::{
-    fs::{read, File},
-    io::{BufRead, BufReader},
-    time::Instant,
-};
+use std::{fs::read, time::Instant};
 
 use clap::Parser;
 use nom::{
-    branch::{alt, permutation},
+    branch::alt,
     bytes::complete::tag,
     character::complete::{digit1, multispace0},
     combinator::{map, map_res},
     error::ParseError,
     multi::separated_list1,
-    sequence::{delimited, pair, preceded, separated_pair, terminated},
+    sequence::{delimited, pair, separated_pair},
     IResult,
 };
 
@@ -63,6 +59,7 @@ fn number(input: &str) -> IResult<&str, u32> {
     map_res(digit1, str::parse)(input)
 }
 
+#[allow(clippy::type_complexity)]
 fn game(input: &str) -> IResult<&str, (u32, Vec<Vec<(u32, Color)>>)> {
     ws(pair(delimited(tag("Game "), number, tag(": ")), reveals))(input)
 }
@@ -83,7 +80,7 @@ fn color(input: &str) -> IResult<&str, Color> {
     ))(input)
 }
 
-fn interpret_reveal(reveal: &Vec<(u32, Color)>) -> Reveal {
+fn interpret_reveal(reveal: &[(u32, Color)]) -> Reveal {
     reveal.iter().fold(
         Reveal {
             red: 0,
@@ -111,7 +108,7 @@ fn interpret_game(game: (u32, Vec<Vec<(u32, Color)>>)) -> Game {
     let (id, reveals) = game;
     Game {
         id,
-        reveals: reveals.iter().map(interpret_reveal).collect(),
+        reveals: reveals.iter().map(|x| interpret_reveal(x)).collect(),
     }
 }
 
@@ -139,14 +136,9 @@ fn max_possible_cubes(game: &Game) -> MaxConstraint {
 }
 
 fn min_sum_power(input: &str) -> u32 {
-    let constraint = MaxConstraint {
-        red: u32::MAX,
-        blue: u32::MAX,
-        green: u32::MAX,
-    };
     input
         .lines()
-        .map(|g| game(&g).expect("could not parse").1)
+        .map(|g| game(g).expect("could not parse").1)
         .map(interpret_game)
         .fold(0, |acc, g| {
             let MaxConstraint { red, blue, green } = max_possible_cubes(&g);
@@ -157,7 +149,7 @@ fn min_sum_power(input: &str) -> u32 {
 fn id_sum(input: &str, constraint: &MaxConstraint) -> u32 {
     input
         .lines()
-        .map(|g| game(&g).expect("could not parse").1)
+        .map(|g| game(g).expect("could not parse").1)
         .map(interpret_game)
         .filter(|g| possible_game(g, constraint))
         .fold(0, |acc, g| acc + g.id)
@@ -185,6 +177,7 @@ fn main() {
     println!("Time elapsed: {:?}", start.elapsed());
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

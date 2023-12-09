@@ -164,7 +164,7 @@ fn main() {
     let start = Instant::now();
     let input = read(args.path.as_path()).unwrap();
     let schematic = Schematic::new(std::str::from_utf8(&input).unwrap()).unwrap();
-    //println!("Part 1: {}", sum_of_part_numbers(&schematic));
+    println!("Part 1: {}", sum_of_part_numbers(&schematic));
     println!("Part 2: {}", get_gear_ratio(&schematic));
     println!("Time elapsed: {:?}", start.elapsed());
 }

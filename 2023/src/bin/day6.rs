@@ -1,6 +1,4 @@
-use std::{convert::TryInto, fs::read, time::Instant};
-
-use clap::Parser;
+use std::time::Instant;
 
 // Solved via maths using quadratic formula
 

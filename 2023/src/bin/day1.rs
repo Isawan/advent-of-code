@@ -95,8 +95,8 @@ fn result<R: Read>(reader: BufReader<R>, f: impl Fn(&str) -> Option<u32>) -> Opt
 
 fn main() {
     let args = Cli::parse();
-    let start = Instant::now();
     let input = File::open(args.path.as_path()).unwrap();
+    let start = Instant::now();
     let reader = BufReader::new(&input);
     let sum = result(reader, number_digit).expect("Error occured");
     println!("{:?}", sum);

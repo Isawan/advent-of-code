@@ -2,11 +2,11 @@ use std::{fs::read, time::Instant};
 
 use clap::Parser;
 use nom::{
-    bytes::complete::{is_a, is_not, tag},
-    character::complete::{digit1, line_ending, multispace0, multispace1, newline},
-    combinator::{map_res, opt},
+    bytes::complete::{is_not, tag},
+    character::complete::{digit1, line_ending, multispace0, newline},
+    combinator::map_res,
     multi::{self, many0, many1},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, pair, terminated, tuple},
     IResult,
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -45,7 +45,7 @@ fn seeds(input: &str) -> IResult<&str, Vec<i64>> {
     delimited(tag("seeds:"), many1(number), many0(newline))(input)
 }
 
-fn almanac(input: &str) -> IResult<&str, (Vec<i64>, Vec<(&str, Vec<Instruction>)>)> {
+fn almanac(input: &str) -> IResult<&str, Almanac> {
     pair(seeds, maps)(input)
 }
 
@@ -65,10 +65,7 @@ fn transforms(seed: i64, instructions: &[Instruction]) -> i64 {
         .unwrap_or(seed)
 }
 
-fn apply_all_transforms<'a>(
-    seed: i64,
-    list_instructions: &Vec<(&'a str, Vec<Instruction>)>,
-) -> i64 {
+fn apply_all_transforms(seed: i64, list_instructions: &[(&str, Vec<Instruction>)]) -> i64 {
     list_instructions
         .iter()
         .fold(seed, |s, (_, ins)| transforms(s, ins))
@@ -76,7 +73,7 @@ fn apply_all_transforms<'a>(
 
 fn part1((seeds, maps): &Almanac) -> i64 {
     seeds
-        .into_iter()
+        .iter()
         .map(|original_seed| apply_all_transforms(*original_seed, maps))
         .fold(i64::MAX, i64::min)
 }
