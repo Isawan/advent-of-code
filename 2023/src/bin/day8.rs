@@ -1,19 +1,14 @@
 use clap::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, alphanumeric1, multispace0};
+use nom::character::complete::{alphanumeric1, multispace0};
 use nom::combinator::{map, value};
 use nom::multi::many1;
 use nom::sequence::{separated_pair, terminated, tuple};
 use nom::IResult;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::fs::read;
 use std::time::Instant;
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -111,30 +106,62 @@ fn traverse((instructions, nodes): &(Vec<Instruction>, Vec<Node>)) -> u64 {
     steps
 }
 
+/// Find cycle time of each starting position then find the lowest common multiple of the cycle time
+/// from each starting position.
 fn ghost_traverse((instructions, nodes): &(Vec<Instruction>, Vec<Node>)) -> u64 {
     let map = nodes
         .iter()
         .map(|node| (node.name, (node.left, node.right)))
         .collect::<std::collections::HashMap<_, _>>();
-    let mut ins_state = InstructionCycle::new(&instructions);
-    let mut mem = HashMap::new();
-    let mut steps = 0;
-    let mut current = "AAA";
-    loop {
-        mem.insert((ins_state.step, current));
-        let ins = ins_state.next().expect("Expected cyclic");
-        println!("{:} {:?}", ins_state.step, current);
-        let (left, right) = map.get(current).expect("Node not found");
-        current = match ins {
-            Instruction::Left => left,
-            Instruction::Right => right,
-        };
+    let ins_state = InstructionCycle::new(instructions);
+    let mut steps: u64 = 0;
+    let mut current_nodes = nodes
+        .iter()
+        .filter_map(|node| {
+            if node.name.ends_with('A') {
+                Some(node.name)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<&str>>();
+    let mut visited: HashMap<(u64, &str), u64> = HashMap::new();
+    let mut cycle_times = vec![None; current_nodes.len()];
+
+    for instruction in ins_state {
+        for i in 0..current_nodes.len() {
+            if cycle_times[i].is_some() {
+                continue;
+            }
+
+            let current = &mut current_nodes[i];
+            let cycle_time = &mut cycle_times[i];
+            let state_key = (steps % instructions.len() as u64, *current);
+
+            let (left, right) = map.get(current).expect("Node not found");
+            *current = match instruction {
+                Instruction::Left => left,
+                Instruction::Right => right,
+            };
+            if let Some(last_step) = visited.get(&state_key) {
+                *cycle_time = Some(steps - last_step);
+            } else {
+                visited.insert(state_key, steps);
+            }
+        }
         steps += 1;
-        if current == "ZZZ" {
+        if cycle_times.iter().all(|x| x.is_some()) {
             break;
         }
     }
-    steps
+
+    // find the lowest common multiple of the cycle times
+    let cycle_times = cycle_times.iter().map(|x| x.unwrap()).collect::<Vec<u64>>();
+    let mut lcm = cycle_times[0];
+    for cycle_time in cycle_times.iter().skip(1) {
+        lcm = lcm * cycle_time / gcd::binary_u64(lcm, *cycle_time);
+    }
+    lcm
 }
 
 fn main() {
@@ -221,17 +248,17 @@ mod tests {
         assert_eq!(traverse(&input), 6);
     }
 
-    #[test]
-    fn test_equivalence() {
-        let input = include_str!("../../input/day8-example");
-        let (_, input) = maps(input).unwrap();
-        assert_eq!(traverse(&input), ghost_traverse(&input));
-    }
+    // #[test]
+    // fn test_equivalence() {
+    //     let input = include_str!("../../input/day8-example");
+    //     let (_, input) = maps(input).unwrap();
+    //     assert_eq!(traverse(&input), ghost_traverse(&input));
+    // }
 
-    //#[test]
-    //fn test_ghost_example() {
-    //    let input = include_str!("../../input/day8-example-ghost");
-    //    let (_, input) = maps(input).unwrap();
-    //    assert_eq!(ghost_traverse(&input), 6);
-    //}
+    #[test]
+    fn test_ghost_example() {
+        let input = include_str!("../../input/day8-example-ghost");
+        let (_, input) = maps(input).unwrap();
+        assert_eq!(ghost_traverse(&input), 6);
+    }
 }
