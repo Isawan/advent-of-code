@@ -1,19 +1,12 @@
-use std::{
-    cmp::{max, Ordering},
-    collections::{BTreeMap, HashMap},
-    convert::TryInto,
-    fs::read,
-    time::Instant,
-};
+use std::{cmp::max, collections::BTreeMap, convert::TryInto, fs::read, time::Instant};
 
 use clap::Parser;
-use ndarray::Order;
 use nom::{
-    character::complete::{anychar, multispace1, newline},
-    combinator::{map, map_opt, map_parser, map_res},
+    character::complete::{anychar, multispace1},
+    combinator::{map_opt, map_res},
     multi::{many0, many1},
     sequence::{separated_pair, terminated, tuple},
-    IResult, InputLength, Parser as NomParser,
+    IResult,
 };
 
 #[derive(Parser, Debug, Clone)]
@@ -138,7 +131,7 @@ fn joker_type(hand: &Hand) -> HandType {
     for try_card in counts.keys() {
         let derived_hand: Hand = hand
             .iter()
-            .map(|card| if *card == Card::J { *try_card } else { &card })
+            .map(|card| if *card == Card::J { *try_card } else { card })
             .cloned()
             .collect::<Vec<_>>()
             .try_into()
