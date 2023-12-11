@@ -1,6 +1,6 @@
 use clap::Parser;
 use nom::{
-    character::complete::{multispace1, newline, space0, space1},
+    character::complete::{newline, space0},
     combinator::opt,
     multi::many1,
     sequence::terminated,
