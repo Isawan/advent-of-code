@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::iter::Iterator;
 
 use clap::Parser;
-use nom::multi::count;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -68,19 +67,11 @@ fn pipe(tile: char) -> NonStartedPipe {
     }
 }
 
-fn is_vertical(((pipe_x, pipe_y), adjacent): (&(i32, i32), &Vec<(i32, i32)>)) -> bool {
-    adjacent.iter().any(|(_, y)| *y - pipe_y != 0)
-}
-
-fn is_horizontal(((pipe_x, pipe_y), adjacent): (&(i32, i32), &Vec<(i32, i32)>)) -> bool {
-    adjacent.iter().any(|(x, _)| *x - pipe_x != 0)
-}
-
 fn resolve_start(
     mut pipes: HashMap<(i32, i32), Vec<(i32, i32)>>,
     start: (i32, i32),
 ) -> HashMap<(i32, i32), Vec<(i32, i32)>> {
-    let mut start_adjacent_pipes: Vec<(i32, i32)> = pipes
+    let start_adjacent_pipes: Vec<(i32, i32)> = pipes
         .iter()
         .filter_map(|(k, v)| if v.contains(&start) { Some(k) } else { None })
         .cloned()
@@ -91,6 +82,7 @@ fn resolve_start(
     pipes
 }
 
+#[allow(clippy::type_complexity)]
 fn build_pipe_map(input: &str) -> ((i32, i32), HashMap<(i32, i32), Vec<(i32, i32)>>) {
     let mut pipes: HashMap<(i32, i32), Vec<(i32, i32)>> = HashMap::new();
     let mut start = None;
@@ -140,7 +132,6 @@ fn count_enclosed_area_by_loop(
     map: HashMap<(i32, i32), Vec<(i32, i32)>>,
     start: (i32, i32),
 ) -> u32 {
-    // prune map to only include pipe attached to start
     let mut new_map = HashMap::new();
     let mut visited: HashSet<(i32, i32)> = HashSet::new();
     let mut explore = VecDeque::new();
@@ -149,6 +140,7 @@ fn count_enclosed_area_by_loop(
     let max_y = *map.keys().map(|(_, y)| y).max().unwrap();
     let max_x = *map.keys().map(|(x, _)| x).max().unwrap();
 
+    // prune map to only include pipe attached to start
     explore.push_back(start);
     while let Some(current) = explore.pop_front() {
         let adjacent = map.get(&current).unwrap();
@@ -161,14 +153,15 @@ fn count_enclosed_area_by_loop(
         );
         new_map.insert(current, adjacent.clone());
     }
-
     let map = new_map;
 
+    // scan map for enclosed area with modified odd-even rule
+    // Special state machine to handle edge cases where corner is hit
     let mut inside = HashSet::new();
     for j in 0..=max_y {
         let mut ray_state = ScanState::Outside;
         for i in 0..=max_x {
-            if let Some(kv @ (pos, adjacent)) = map.get_key_value(&(i, j)) {
+            if let Some(kv) = map.get_key_value(&(i, j)) {
                 ray_state = ray_state.next(pipe_to_char(kv));
             } else if ray_state.is_inside() {
                 inside.insert((i, j));
@@ -244,34 +237,5 @@ mod tests {
         let input = include_str!("../../input/day10-example-4");
         let (start, map) = build_pipe_map(input);
         assert_eq!(count_enclosed_area_by_loop(map, start), 8);
-    }
-
-    fn pipe_helper(c: char) -> ((i32, i32), Vec<(i32, i32)>) {
-        if let NonStartedPipe::Pipe(adjacent) = pipe(c) {
-            ((0, 0), adjacent)
-        } else {
-            panic!("Not a pipe");
-        }
-    }
-
-    #[test]
-    fn test_vertical_pipes() {
-        let (p, a) = pipe_helper('|');
-        assert_eq!(is_vertical((&p, &a)), true);
-
-        let (p, a) = pipe_helper('-');
-        assert_eq!(is_vertical((&p, &a)), false);
-
-        let (p, a) = pipe_helper('L');
-        assert_eq!(is_vertical((&p, &a)), true);
-
-        let (p, a) = pipe_helper('J');
-        assert_eq!(is_vertical((&p, &a)), true);
-
-        let (p, a) = pipe_helper('7');
-        assert_eq!(is_vertical((&p, &a)), true);
-
-        let (p, a) = pipe_helper('F');
-        assert_eq!(is_vertical((&p, &a)), true);
     }
 }
