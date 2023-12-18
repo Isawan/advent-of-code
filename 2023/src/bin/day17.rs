@@ -22,19 +22,19 @@ fn parse_grid(input: &str) -> HashMap<(i32, i32), u32> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Direction {
-    Left,
-    Right,
-    Up,
-    Down,
+    Left(u32),
+    Right(u32),
+    Up(u32),
+    Down(u32),
+    Start,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct State {
     x: i32,
     y: i32,
     distance: u32,
     direction: Direction,
-    times: u32,
 }
 
 struct StateOrd(State);
@@ -65,66 +65,80 @@ fn traverse(grid: HashMap<(i32, i32), u32>) -> Option<u32> {
         *grid.keys().map(|(x, _)| x).max().unwrap(),
         *grid.keys().map(|(_, y)| y).max().unwrap(),
     );
-    let start_value = *grid.get(&(0, 0)).unwrap();
-    let all_directions = [
-        Direction::Down,
-        Direction::Up,
-        Direction::Left,
-        Direction::Right,
-    ];
-    for direction in all_directions {
-        states.push(StateOrd(State {
-            x: 0,
-            y: 0,
-            distance: start_value,
-            direction,
-            times: 1,
-        }));
-    }
+    states.push(StateOrd(State {
+        x: 0,
+        y: 0,
+        distance: 0,
+        direction: Direction::Start,
+    }));
     let mut visited: HashSet<State> = HashSet::default();
     while let Some(StateOrd(
         state @ State {
             x,
             y,
             distance,
-            times,
             direction,
+            ..
         },
     )) = states.pop()
     {
-        if times > 3 {
-            continue;
-        }
         if visited.contains(&state) {
             continue;
         }
-        if let Some(value) = grid.get(&(x, y)) {
-            if (x, y) == destination {
-                return Some(distance);
+        if (x, y) == destination {
+            return Some(distance);
+        }
+        let next_directions = match direction {
+            Direction::Start => vec![
+                Direction::Left(2),
+                Direction::Right(2),
+                Direction::Up(2),
+                Direction::Down(2),
+            ],
+            Direction::Down(0) => vec![Direction::Left(2), Direction::Right(2)],
+            Direction::Down(n) => vec![
+                Direction::Left(2),
+                Direction::Right(2),
+                Direction::Down(n - 1),
+            ],
+            Direction::Up(0) => vec![Direction::Left(2), Direction::Right(2)],
+            Direction::Up(n) => vec![
+                Direction::Left(2),
+                Direction::Right(2),
+                Direction::Up(n - 1),
+            ],
+            Direction::Left(0) => vec![Direction::Up(2), Direction::Down(2)],
+            Direction::Left(n) => {
+                vec![Direction::Up(2), Direction::Down(2), Direction::Left(n - 1)]
             }
-            for next_direction in all_directions {
+            Direction::Right(0) => vec![Direction::Up(2), Direction::Down(2)],
+            Direction::Right(n) => vec![
+                Direction::Up(2),
+                Direction::Down(2),
+                Direction::Right(n - 1),
+            ],
+        };
+        for next_direction in next_directions.into_iter() {
+            let new_x = match next_direction {
+                Direction::Left(_) => x - 1,
+                Direction::Right(_) => x + 1,
+                _ => x,
+            };
+            let new_y = match next_direction {
+                Direction::Up(_) => y - 1,
+                Direction::Down(_) => y + 1,
+                _ => y,
+            };
+            if let Some(value) = grid.get(&(new_x, new_y)) {
                 states.push(StateOrd(State {
-                    x: match next_direction {
-                        Direction::Left => x - 1,
-                        Direction::Right => x + 1,
-                        _ => x,
-                    },
-                    y: match next_direction {
-                        Direction::Up => y + 1,
-                        Direction::Down => y - 1,
-                        _ => y,
-                    },
+                    x: new_x,
+                    y: new_y,
                     distance: distance + value,
                     direction: next_direction,
-                    times: if next_direction == direction {
-                        times + 1
-                    } else {
-                        1
-                    },
                 }));
             }
-            visited.insert(state);
         }
+        visited.insert(state);
     }
     None
 }
@@ -147,15 +161,13 @@ mod tests {
             x: 0,
             y: 0,
             distance: 0,
-            direction: Direction::Left,
-            times: 0,
+            direction: Direction::Left(0),
         });
         let state2 = StateOrd(State {
             x: 0,
             y: 0,
             distance: 1,
-            direction: Direction::Left,
-            times: 0,
+            direction: Direction::Left(0),
         });
         assert!(state2 < state1);
     }
