@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ahash::RandomState;
 use bumpalo::Bump;
 use clap::Parser;
 use nom::{
@@ -55,7 +56,7 @@ fn records(input: &str) -> IResult<&str, Vec<(Vec<SpringCondition>, Vec<u32>)>> 
 }
 fn valid_combos<'a>(
     alloc: &'a Bump,
-    mem: &mut HashMap<(&'a [SpringCondition], &'a [u32]), u64>,
+    mem: &mut HashMap<(&'a [SpringCondition], &'a [u32]), u64, RandomState>,
     (conditions, criteria): (&[SpringCondition], &[u32]),
 ) -> u64 {
     if let Some(result) = mem.get(&(conditions, criteria)) {
@@ -122,7 +123,11 @@ fn part1(input: &str) -> u64 {
     records
         .iter()
         .map(|(conditions, criteria)| {
-            valid_combos(&Bump::new(), &mut HashMap::new(), (conditions, criteria))
+            valid_combos(
+                &Bump::new(),
+                &mut HashMap::default(),
+                (conditions, criteria),
+            )
         })
         .sum::<u64>()
 }
@@ -267,13 +272,13 @@ mod tests {
     #[test]
     fn test_known_combinations() {
         assert_eq!(
-            valid_combos(&Bump::new(), &mut HashMap::new(), (&[], &[])),
+            valid_combos(&Bump::new(), &mut HashMap::default(), (&[], &[])),
             1
         );
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&[SpringCondition::Damaged], &[1])
             ),
             1
@@ -281,7 +286,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&[SpringCondition::Damaged], &[2])
             ),
             0
@@ -289,7 +294,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&[SpringCondition::Operational], &[])
             ),
             1
@@ -297,7 +302,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&[SpringCondition::Operational], &[1])
             ),
             0
@@ -305,7 +310,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[SpringCondition::Operational, SpringCondition::Operational],
                     &[]
@@ -316,7 +321,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[SpringCondition::Operational, SpringCondition::Operational],
                     &[1]
@@ -327,7 +332,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[SpringCondition::Operational, SpringCondition::Operational],
                     &[1]
@@ -338,7 +343,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[SpringCondition::Operational, SpringCondition::Operational],
                     &[1, 1]
@@ -349,7 +354,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[
                         SpringCondition::Operational,
@@ -364,7 +369,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[
                         SpringCondition::Operational,
@@ -379,7 +384,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[
                         SpringCondition::Operational,
@@ -394,7 +399,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (
                     &[
                         SpringCondition::Damaged,
@@ -416,7 +421,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[0].0, &records[0].1)
             ),
             1
@@ -424,7 +429,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[1].0, &records[1].1)
             ),
             1
@@ -432,7 +437,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[2].0, &records[2].1)
             ),
             1
@@ -440,7 +445,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[3].0, &records[3].1)
             ),
             1
@@ -448,7 +453,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[4].0, &records[4].1)
             ),
             1
@@ -456,7 +461,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[5].0, &records[5].1)
             ),
             1
@@ -471,7 +476,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[0].0, &records[0].1)
             ),
             1
@@ -479,7 +484,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[1].0, &records[1].1)
             ),
             4
@@ -487,7 +492,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[2].0, &records[2].1)
             ),
             1
@@ -495,7 +500,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[3].0, &records[3].1)
             ),
             1
@@ -503,7 +508,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[4].0, &records[4].1)
             ),
             4
@@ -511,7 +516,7 @@ mod tests {
         assert_eq!(
             valid_combos(
                 &Bump::new(),
-                &mut HashMap::new(),
+                &mut HashMap::default(),
                 (&records[5].0, &records[5].1)
             ),
             10
