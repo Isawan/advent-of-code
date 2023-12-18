@@ -11,6 +11,7 @@ use nom::{
     sequence::{separated_pair, terminated},
     IResult,
 };
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -160,6 +161,8 @@ fn part2(input: &str) -> u64 {
                 .concat(),
             )
         })
+        .collect::<Vec<_>>()
+        .par_iter()
         .map(|(conditions, criteria)| {
             valid_combos(
                 &Bump::new(),
