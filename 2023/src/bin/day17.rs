@@ -1,6 +1,7 @@
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use clap::Parser;
+use min_max_heap::MinMaxHeap;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -35,32 +36,127 @@ struct State {
     y: i32,
     distance: u32,
     direction: Direction,
+    destination: (i32, i32),
+}
+
+impl State {
+    fn movement(&self) -> u32 {
+        match self.direction {
+            Direction::Up(n) | Direction::Down(n) | Direction::Left(n) | Direction::Right(n) => n,
+            Direction::Start => 0,
+        }
+    }
 }
 
 struct StateOrd(State);
 
 impl PartialOrd for StateOrd {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(other.0.distance.cmp(&self.0.distance))
+        Some((other.0.distance + other.heuristic()).cmp(&(self.0.distance + self.heuristic())))
     }
 }
 
 impl Ord for StateOrd {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.0.distance.cmp(&self.0.distance)
+        (other.0.distance + other.heuristic()).cmp(&(self.0.distance + self.heuristic()))
     }
 }
 
 impl PartialEq for StateOrd {
     fn eq(&self, other: &Self) -> bool {
-        self.0.distance == other.0.distance
+        (self.0.distance + self.heuristic()) == (other.0.distance + other.heuristic())
+    }
+}
+
+impl StateOrd {
+    fn heuristic(&self) -> u32 {
+        let Self(State {
+            x,
+            y,
+            destination: (dest_x, dest_y),
+            ..
+        }) = self;
+        ((x - dest_x).unsigned_abs() + (y - dest_y).unsigned_abs())
     }
 }
 
 impl Eq for StateOrd {}
 
-fn traverse(grid: HashMap<(i32, i32), u32>) -> Option<u32> {
-    let mut states = BinaryHeap::new();
+fn part1_state_generator(s: &State) -> Vec<Direction> {
+    match s.direction {
+        Direction::Start => vec![
+            Direction::Left(1),
+            Direction::Right(1),
+            Direction::Up(1),
+            Direction::Down(1),
+        ],
+        Direction::Down(3..) => vec![Direction::Left(1), Direction::Right(1)],
+        Direction::Down(n) => vec![
+            Direction::Left(1),
+            Direction::Right(1),
+            Direction::Down(n + 1),
+        ],
+        Direction::Up(3..) => vec![Direction::Left(1), Direction::Right(1)],
+        Direction::Up(n) => vec![
+            Direction::Left(1),
+            Direction::Right(1),
+            Direction::Up(n + 1),
+        ],
+        Direction::Left(3..) => vec![Direction::Up(1), Direction::Down(1)],
+        Direction::Left(n) => {
+            vec![Direction::Up(1), Direction::Down(1), Direction::Left(n + 1)]
+        }
+        Direction::Right(3..) => vec![Direction::Up(1), Direction::Down(1)],
+        Direction::Right(n) => vec![
+            Direction::Up(1),
+            Direction::Down(1),
+            Direction::Right(n + 1),
+        ],
+    }
+}
+
+fn part2_state_generator(s: &State) -> Vec<Direction> {
+    match s.direction {
+        Direction::Start => vec![
+            Direction::Left(1),
+            Direction::Right(1),
+            Direction::Up(1),
+            Direction::Down(1),
+        ],
+        Direction::Down(10..) => vec![Direction::Left(1), Direction::Right(1)],
+        Direction::Down(n @ ..=3) => vec![Direction::Down(n + 1)],
+        Direction::Down(n @ 4..=9) => vec![
+            Direction::Left(1),
+            Direction::Right(1),
+            Direction::Down(n + 1),
+        ],
+        Direction::Up(10..) => vec![Direction::Left(1), Direction::Right(1)],
+        Direction::Up(n @ ..=3) => vec![Direction::Up(n + 1)],
+        Direction::Up(n @ 4..=9) => vec![
+            Direction::Left(1),
+            Direction::Right(1),
+            Direction::Up(n + 1),
+        ],
+        Direction::Left(10..) => vec![Direction::Up(1), Direction::Down(1)],
+        Direction::Left(n @ ..=3) => vec![Direction::Left(n + 1)],
+        Direction::Left(n @ 4..=9) => {
+            vec![Direction::Up(1), Direction::Down(1), Direction::Left(n + 1)]
+        }
+        Direction::Right(10..) => vec![Direction::Up(1), Direction::Down(1)],
+        Direction::Right(n @ ..=3) => vec![Direction::Right(n + 1)],
+        Direction::Right(n @ 4..=9) => vec![
+            Direction::Up(1),
+            Direction::Down(1),
+            Direction::Right(n + 1),
+        ],
+    }
+}
+
+fn traverse(
+    grid: &HashMap<(i32, i32), u32>,
+    generator: impl Fn(&State) -> Vec<Direction>,
+) -> Option<u32> {
+    let mut states = MinMaxHeap::new();
     let destination = (
         *grid.keys().map(|(x, _)| x).max().unwrap(),
         *grid.keys().map(|(_, y)| y).max().unwrap(),
@@ -70,8 +166,9 @@ fn traverse(grid: HashMap<(i32, i32), u32>) -> Option<u32> {
         y: 0,
         distance: 0,
         direction: Direction::Start,
+        destination,
     }));
-    let mut visited: HashSet<State> = HashSet::default();
+    let mut visited: HashSet<(i32, i32, Direction)> = HashSet::default();
     while let Some(StateOrd(
         state @ State {
             x,
@@ -80,44 +177,15 @@ fn traverse(grid: HashMap<(i32, i32), u32>) -> Option<u32> {
             direction,
             ..
         },
-    )) = states.pop()
+    )) = states.pop_max()
     {
-        if visited.contains(&state) {
+        if visited.contains(&(x, y, direction)) {
             continue;
         }
         if (x, y) == destination {
             return Some(distance);
         }
-        let next_directions = match direction {
-            Direction::Start => vec![
-                Direction::Left(2),
-                Direction::Right(2),
-                Direction::Up(2),
-                Direction::Down(2),
-            ],
-            Direction::Down(0) => vec![Direction::Left(2), Direction::Right(2)],
-            Direction::Down(n) => vec![
-                Direction::Left(2),
-                Direction::Right(2),
-                Direction::Down(n - 1),
-            ],
-            Direction::Up(0) => vec![Direction::Left(2), Direction::Right(2)],
-            Direction::Up(n) => vec![
-                Direction::Left(2),
-                Direction::Right(2),
-                Direction::Up(n - 1),
-            ],
-            Direction::Left(0) => vec![Direction::Up(2), Direction::Down(2)],
-            Direction::Left(n) => {
-                vec![Direction::Up(2), Direction::Down(2), Direction::Left(n - 1)]
-            }
-            Direction::Right(0) => vec![Direction::Up(2), Direction::Down(2)],
-            Direction::Right(n) => vec![
-                Direction::Up(2),
-                Direction::Down(2),
-                Direction::Right(n - 1),
-            ],
-        };
+        let next_directions = generator(&state);
         for next_direction in next_directions.into_iter() {
             let new_x = match next_direction {
                 Direction::Left(_) => x - 1,
@@ -135,10 +203,11 @@ fn traverse(grid: HashMap<(i32, i32), u32>) -> Option<u32> {
                     y: new_y,
                     distance: distance + value,
                     direction: next_direction,
+                    destination,
                 }));
             }
         }
-        visited.insert(state);
+        visited.insert((x, y, direction));
     }
     None
 }
@@ -147,8 +216,15 @@ fn main() {
     let args = Cli::parse();
     let input = std::fs::read_to_string(&args.path).unwrap();
     let grid = parse_grid(&input);
-    println!("Part 1: {}", traverse(grid).unwrap());
-    // println!("Part 2: {}", grid.len());
+    println!(
+        "Part 1: {}",
+        traverse(&grid, part1_state_generator).unwrap()
+    );
+
+    println!(
+        "Part 2: {}",
+        traverse(&grid, part2_state_generator).unwrap()
+    );
 }
 
 #[cfg(test)]
@@ -162,12 +238,14 @@ mod tests {
             y: 0,
             distance: 0,
             direction: Direction::Left(0),
+            destination: (1, 1),
         });
         let state2 = StateOrd(State {
             x: 0,
             y: 0,
             distance: 1,
             direction: Direction::Left(0),
+            destination: (1, 1),
         });
         assert!(state2 < state1);
     }
@@ -176,6 +254,13 @@ mod tests {
     fn test_example() {
         let input = include_str!("../../input/day17-example");
         let grid = parse_grid(input);
-        assert_eq!(traverse(grid), Some(102));
+        assert_eq!(traverse(&grid, part1_state_generator), Some(102));
+    }
+
+    #[test]
+    fn test_example_part2() {
+        let input = include_str!("../../input/day17-example");
+        let grid = parse_grid(input);
+        assert_eq!(traverse(&grid, part2_state_generator), Some(94));
     }
 }
