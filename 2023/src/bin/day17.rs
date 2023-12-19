@@ -1,7 +1,6 @@
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use clap::Parser;
-use min_max_heap::MinMaxHeap;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -39,15 +38,6 @@ struct State {
     destination: (i32, i32),
 }
 
-impl State {
-    fn movement(&self) -> u32 {
-        match self.direction {
-            Direction::Up(n) | Direction::Down(n) | Direction::Left(n) | Direction::Right(n) => n,
-            Direction::Start => 0,
-        }
-    }
-}
-
 struct StateOrd(State);
 
 impl PartialOrd for StateOrd {
@@ -76,7 +66,7 @@ impl StateOrd {
             destination: (dest_x, dest_y),
             ..
         }) = self;
-        ((x - dest_x).unsigned_abs() + (y - dest_y).unsigned_abs())
+        (x - dest_x).unsigned_abs() + (y - dest_y).unsigned_abs()
     }
 }
 
@@ -156,7 +146,7 @@ fn traverse(
     grid: &HashMap<(i32, i32), u32>,
     generator: impl Fn(&State) -> Vec<Direction>,
 ) -> Option<u32> {
-    let mut states = MinMaxHeap::new();
+    let mut states = BinaryHeap::new();
     let destination = (
         *grid.keys().map(|(x, _)| x).max().unwrap(),
         *grid.keys().map(|(_, y)| y).max().unwrap(),
@@ -177,7 +167,7 @@ fn traverse(
             direction,
             ..
         },
-    )) = states.pop_max()
+    )) = states.pop()
     {
         if visited.contains(&(x, y, direction)) {
             continue;
@@ -214,7 +204,7 @@ fn traverse(
 
 fn main() {
     let args = Cli::parse();
-    let input = std::fs::read_to_string(&args.path).unwrap();
+    let input = std::fs::read_to_string(args.path).unwrap();
     let grid = parse_grid(&input);
     println!(
         "Part 1: {}",
