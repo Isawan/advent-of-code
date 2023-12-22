@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::newline,
-    combinator::{map, map_res, opt, value},
+    combinator::{map, opt, value},
     multi::many1,
     sequence::terminated,
     IResult,
@@ -72,52 +72,59 @@ fn flip_y((x, y): (i32, i32), y_axis: i32) -> (i32, i32) {
     (x, 2 * y_axis - y - 1)
 }
 
-fn horizontal_flip(grid: &Grid) -> Option<i32> {
-    // enumerate over all cell in grid
+fn horizontal_flip(grid: &Grid, max_error: usize) -> Option<i32> {
     (1..grid.width).find(|axis| {
         grid.items
             .iter()
             .enumerate()
             .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, item)| ((x, y), item)))
-            .map(|((x, y), item)| ((x, y), flip_x((x as i32, y as i32), *axis), item))
-            .map(|((x, y), (fx, fy), item)| (item, grid.get(fx, fy)))
-            .all(|(item, other)| match (item, other) {
-                (_, None) => true,
-                (first, Some(flipped)) => *first == flipped,
+            .map(|((x, y), item)| (flip_x((x as i32, y as i32), *axis), item))
+            .map(|((fx, fy), item)| (item, grid.get(fx, fy)))
+            .filter_map(|(item, other)| match (item, other) {
+                (_, None) => None,
+                (first, Some(flipped)) => Some(*first == flipped),
             })
+            .filter(|x| !x)
+            .count()
+            == max_error
     })
 }
 
-fn vertical_flip(grid: &Grid) -> Option<i32> {
+fn vertical_flip(grid: &Grid, max_error: usize) -> Option<i32> {
     // enumerate over all cell in grid
     (1..grid.height).find(|axis| {
         grid.items
             .iter()
             .enumerate()
             .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, item)| ((x, y), item)))
-            .map(|((x, y), item)| ((x, y), flip_y((x as i32, y as i32), *axis), item))
-            .map(|((x, y), (fx, fy), item)| (item, grid.get(fx, fy)))
-            .all(|(item, other)| match (item, other) {
-                (_, None) => true,
-                (first, Some(flipped)) => *first == flipped,
+            .map(|((x, y), item)| (flip_y((x as i32, y as i32), *axis), item))
+            .map(|((fx, fy), item)| (item, grid.get(fx, fy)))
+            .filter_map(|(item, other)| match (item, other) {
+                (_, None) => None,
+                (first, Some(flipped)) => Some(*first == flipped),
             })
+            .filter(|x| !x)
+            .count()
+            == max_error
     })
 }
 
-fn part1(input: &str) -> i32 {
+fn solve(input: &str, error: usize) -> i32 {
     let grids = grids(input).unwrap().1;
     grids
         .iter()
         .map(|grid| {
-            horizontal_flip(grid).unwrap_or_else(|| vertical_flip(grid).map(|v| 100 * v).unwrap())
+            horizontal_flip(grid, error)
+                .unwrap_or_else(|| vertical_flip(grid, error).map(|v| 100 * v).unwrap())
         })
         .sum()
 }
 
 fn main() {
     let args = Cli::parse();
-    let input = std::fs::read_to_string(&args.path).unwrap();
-    println!("Part 1: {}", part1(&input));
+    let input = std::fs::read_to_string(args.path).unwrap();
+    println!("Part 1: {}", solve(&input, 0));
+    println!("Part 2: {}", solve(&input, 2));
 }
 
 #[cfg(test)]
@@ -162,7 +169,7 @@ mod tests {
         let input = include_str!("../../input/day13-example");
         let grids = grids(input).unwrap().1;
         let grid = &grids[0];
-        assert_eq!(horizontal_flip(grid), Some(5));
+        assert_eq!(horizontal_flip(grid, 0), Some(5));
     }
 
     #[test]
@@ -170,12 +177,20 @@ mod tests {
         let input = include_str!("../../input/day13-example");
         let grids = grids(input).unwrap().1;
         let grid = &grids[1];
-        assert_eq!(vertical_flip(grid), Some(4));
+        assert_eq!(vertical_flip(grid, 0), Some(4));
     }
 
     #[test]
     fn test_example_part1() {
         let input = include_str!("../../input/day13-example");
-        assert_eq!(part1(input), 405);
+        assert_eq!(solve(input, 0), 405);
+    }
+
+    #[test]
+    fn test_example_vertical_flip_with_smudge() {
+        let input = include_str!("../../input/day13-example");
+        let grids = grids(input).unwrap().1;
+        assert_eq!(vertical_flip(&grids[0], 2), Some(3));
+        assert_eq!(vertical_flip(&grids[1], 2), Some(1));
     }
 }
