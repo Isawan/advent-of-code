@@ -1,4 +1,7 @@
-use std::cell::RefCell;
+use std::{
+    cell::RefCell,
+    collections::{hash_map::Entry, HashMap},
+};
 
 use clap::Parser;
 
@@ -9,14 +12,14 @@ struct Cli {
     path: std::path::PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Item {
     Round,
     Cube,
     Empty,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct Grid {
     items: Vec<Item>,
     width: usize,
@@ -179,11 +182,27 @@ fn cycle(mut grid: Grid) -> Grid {
 
 fn part2(input: Grid) -> usize {
     let mut grid = input;
-    for i in 0..1_000_000 {
-        if i % 100_000 == 0 {
-            println!("{}", i);
+    let mut i = 0;
+    let mut visited = HashMap::new();
+    let until = 1_000_000_000;
+    loop {
+        match visited.entry(grid.clone()) {
+            Entry::Occupied(entry) => {
+                println!("found at: {}", i);
+                let cycle_time = i - entry.get();
+                let remaining = until - i;
+                let times = remaining / cycle_time;
+                i += times * cycle_time;
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(i);
+            }
         }
         grid = cycle(grid);
+        i += 1;
+        if i == until {
+            break;
+        }
     }
     let grid_ref = &grid;
     (0..grid.width)
