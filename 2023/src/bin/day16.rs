@@ -10,6 +10,7 @@ use nom::{
     sequence::terminated,
     IResult,
 };
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -62,13 +63,11 @@ impl<T: Copy + Default> Grid<T> {
         assert_eq!(items.len(), ((width + 2) * (height + 2)) as usize);
         Self {
             items,
-            width: width,
-            height: height,
+            width,
+            height,
         }
     }
-}
 
-impl<T: Copy + Debug> Grid<T> {
     fn fresh(width: i32, height: i32, item: T) -> Self {
         let items = vec![item; ((width + 2) * (height + 2)) as usize];
         assert_eq!(items.len(), ((width + 2) * (height + 2)) as usize);
@@ -79,13 +78,12 @@ impl<T: Copy + Debug> Grid<T> {
         }
     }
 
-    fn get(&self, x: i32, y: i32) -> Option<T> {
+    fn get(&self, x: i32, y: i32) -> T {
         if x < -1 || y < -1 || x > self.width || y > self.height {
-            return None;
+            return Default::default();
         }
         let index = (((y + 1) * (self.width + 2)) + (x + 1)) as usize;
-        if index >= self.items.len() {}
-        Some(self.items[index])
+        self.items[index]
     }
 
     fn set(&mut self, x: i32, y: i32, item: T) {
@@ -93,14 +91,11 @@ impl<T: Copy + Debug> Grid<T> {
     }
 }
 
-impl<T: Copy + Clone + Debug> Debug for Grid<T> {
+impl<T: Copy + Clone + Debug + Default> Debug for Grid<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for y in 0..self.height {
             for x in 0..self.width {
-                match self.get(x, y) {
-                    Some(item) => write!(f, "{: <6?}", item)?,
-                    None => write!(f, " ")?,
-                }
+                write!(f, "{: <6?}", self.get(x, y))?;
             }
             writeln!(f, "\n")?;
         }
@@ -131,58 +126,39 @@ fn update(state: &State, grid: &Grid<Item>) -> State {
     let mut down = Grid::fresh(grid.width, grid.height, false);
     for y in 0..grid.height {
         for x in 0..grid.width {
-            let cur_left = state.left.get(x, y).unwrap_or(false);
-            let cur_right = state.right.get(x, y).unwrap_or(false);
-            let cur_up = state.up.get(x, y).unwrap_or(false);
-            let cur_down = state.down.get(x, y).unwrap_or(false);
+            let cur_left = state.left.get(x, y);
+            let cur_right = state.right.get(x, y);
+            let cur_up = state.up.get(x, y);
+            let cur_down = state.down.get(x, y);
             match grid.get(x, y) {
-                Some(Item::Empty) => {
-                    right.set(
-                        x,
-                        y,
-                        cur_right || state.right.get(x - 1, y).unwrap_or(false),
-                    );
-                    left.set(x, y, cur_left || state.left.get(x + 1, y).unwrap_or(false));
-                    up.set(x, y, cur_up || state.up.get(x, y + 1).unwrap_or(false));
-                    down.set(x, y, cur_down || state.down.get(x, y - 1).unwrap_or(false));
+                Item::Empty => {
+                    right.set(x, y, cur_right || state.right.get(x - 1, y));
+                    left.set(x, y, cur_left || state.left.get(x + 1, y));
+                    up.set(x, y, cur_up || state.up.get(x, y + 1));
+                    down.set(x, y, cur_down || state.down.get(x, y - 1));
                 }
-                Some(Item::ForwardMirror) => {
-                    left.set(x, y, cur_left || state.down.get(x, y - 1).unwrap_or(false));
-                    right.set(x, y, cur_right || state.up.get(x, y + 1).unwrap_or(false));
-                    up.set(x, y, cur_up || state.right.get(x - 1, y).unwrap_or(false));
-                    down.set(x, y, cur_down || state.left.get(x + 1, y).unwrap_or(false));
+                Item::ForwardMirror => {
+                    left.set(x, y, cur_left || state.down.get(x, y - 1));
+                    right.set(x, y, cur_right || state.up.get(x, y + 1));
+                    up.set(x, y, cur_up || state.right.get(x - 1, y));
+                    down.set(x, y, cur_down || state.left.get(x + 1, y));
                 }
-                Some(Item::BackMirror) => {
-                    left.set(x, y, cur_left || state.up.get(x, y + 1).unwrap_or(false));
-                    right.set(x, y, cur_right || state.down.get(x, y - 1).unwrap_or(false));
-                    up.set(x, y, cur_up || state.left.get(x + 1, y).unwrap_or(false));
-                    down.set(x, y, cur_down || state.right.get(x - 1, y).unwrap_or(false));
+                Item::BackMirror => {
+                    left.set(x, y, cur_left || state.up.get(x, y + 1));
+                    right.set(x, y, cur_right || state.down.get(x, y - 1));
+                    up.set(x, y, cur_up || state.left.get(x + 1, y));
+                    down.set(x, y, cur_down || state.right.get(x - 1, y));
                 }
-                Some(Item::VSplit) => {
-                    let v = state.right.get(x - 1, y).unwrap_or(false)
-                        || state.left.get(x + 1, y).unwrap_or(false);
-                    up.set(x, y, cur_up || v || state.up.get(x, y + 1).unwrap_or(false));
-                    down.set(
-                        x,
-                        y,
-                        cur_down || v || state.down.get(x, y - 1).unwrap_or(false),
-                    );
+                Item::VSplit => {
+                    let v = state.right.get(x - 1, y) || state.left.get(x + 1, y);
+                    up.set(x, y, cur_up || v || state.up.get(x, y + 1));
+                    down.set(x, y, cur_down || v || state.down.get(x, y - 1));
                 }
-                Some(Item::HSplit) => {
-                    let v = state.up.get(x, y + 1).unwrap_or(false)
-                        || state.down.get(x, y - 1).unwrap_or(false);
-                    left.set(
-                        x,
-                        y,
-                        cur_left || v || state.left.get(x + 1, y).unwrap_or(false),
-                    );
-                    right.set(
-                        x,
-                        y,
-                        cur_right || v || state.right.get(x - 1, y).unwrap_or(false),
-                    );
+                Item::HSplit => {
+                    let v = state.up.get(x, y + 1) || state.down.get(x, y - 1);
+                    left.set(x, y, cur_left || v || state.left.get(x + 1, y));
+                    right.set(x, y, cur_right || v || state.right.get(x - 1, y));
                 }
-                None => panic!("outside boundary"),
             }
         }
     }
@@ -209,10 +185,10 @@ fn count_energized(state: &State) -> u32 {
     let mut count = 0;
     for y in 0..state.left.height {
         for x in 0..state.left.width {
-            if state.left.get(x, y).unwrap_or(false)
-                || state.right.get(x, y).unwrap_or(false)
-                || state.up.get(x, y).unwrap_or(false)
-                || state.down.get(x, y).unwrap_or(false)
+            if state.left.get(x, y)
+                || state.right.get(x, y)
+                || state.up.get(x, y)
+                || state.down.get(x, y)
             {
                 count += 1;
             }
@@ -247,7 +223,7 @@ fn part2(input: &str) -> u32 {
         starting_positions.push((grid.width, y)); // left
     }
     starting_positions
-        .iter()
+        .par_iter()
         .map(|pos| {
             match pos {
                 (x, y) if *y == -1 => State {
@@ -302,8 +278,12 @@ fn part2(input: &str) -> u32 {
 fn main() {
     let args = Cli::parse();
     let input = std::fs::read_to_string(args.path).unwrap();
+    let start = std::time::Instant::now();
     println!("Part 1: {}", part1(&input));
+    println!("Time: {}ms", start.elapsed().as_millis());
+    let start = std::time::Instant::now();
     println!("Part 2: {}", part2(&input));
+    println!("Time: {}ms", start.elapsed().as_millis());
 }
 
 #[cfg(test)]
@@ -323,13 +303,13 @@ mod tests {
             right,
         };
         let state = update(&state, &grid);
-        assert_eq!(state.left.get(0, 0), Some(false));
-        assert_eq!(state.right.get(0, 0), Some(true));
-        assert_eq!(state.up.get(0, 0), Some(false));
-        assert_eq!(state.down.get(0, 0), Some(false));
+        assert!(!state.left.get(0, 0));
+        assert!(state.right.get(0, 0));
+        assert!(!state.up.get(0, 0));
+        assert!(!state.down.get(0, 0));
 
-        assert_eq!(state.down.get(1, 0), Some(true));
-        assert_eq!(state.up.get(1, 0), Some(true));
+        assert!(state.down.get(1, 0));
+        assert!(state.up.get(1, 0));
     }
 
     #[test]
