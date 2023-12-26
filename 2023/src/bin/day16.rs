@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, iter::repeat};
 
 use clap::Parser;
 use nom::{
@@ -26,6 +26,12 @@ enum Item {
     HSplit,
 }
 
+impl Default for Item {
+    fn default() -> Self {
+        Self::Empty
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Grid<T> {
     items: Vec<T>,
@@ -41,20 +47,31 @@ struct State {
     down: Grid<bool>,
 }
 
-impl<T: Copy> Grid<T> {
-    fn new(items: Vec<Vec<T>>) -> Self {
-        let height = items.len() as i32;
-        let width = items[0].len() as i32;
-        let items = items.into_iter().flat_map(|x| x.into_iter()).collect();
+impl<T: Copy + Default> Grid<T> {
+    fn new(arrays: Vec<Vec<T>>) -> Self {
+        let height = arrays.len() as i32;
+        let width = arrays[0].len() as i32;
+        let mut items = Vec::with_capacity(((width + 2) * (height + 2)) as usize);
+        items.extend(repeat(T::default()).take(width as usize + 2));
+        for y in 0..height {
+            items.push(T::default());
+            items.extend(arrays[y as usize].iter());
+            items.push(T::default());
+        }
+        items.extend(repeat(T::default()).take(width as usize + 2));
+        assert_eq!(items.len(), ((width + 2) * (height + 2)) as usize);
         Self {
             items,
-            width,
-            height,
+            width: width,
+            height: height,
         }
     }
+}
 
+impl<T: Copy + Debug> Grid<T> {
     fn fresh(width: i32, height: i32, item: T) -> Self {
-        let items = vec![item; (width * height) as usize];
+        let items = vec![item; ((width + 2) * (height + 2)) as usize];
+        assert_eq!(items.len(), ((width + 2) * (height + 2)) as usize);
         Self {
             items,
             width,
@@ -63,20 +80,21 @@ impl<T: Copy> Grid<T> {
     }
 
     fn get(&self, x: i32, y: i32) -> Option<T> {
-        if x < 0 || y < 0 || x >= self.width || y >= self.height {
+        if x < -1 || y < -1 || x > self.width || y > self.height {
             return None;
         }
-        Some(self.items[(y * self.width + x) as usize])
+        let index = (((y + 1) * (self.width + 2)) + (x + 1)) as usize;
+        if index >= self.items.len() {}
+        Some(self.items[index])
     }
 
     fn set(&mut self, x: i32, y: i32, item: T) {
-        self.items[((y * self.width) + x) as usize] = item;
+        self.items[(((y + 1) * (self.width + 2)) + (x + 1)) as usize] = item;
     }
 }
 
 impl<T: Copy + Clone + Debug> Debug for Grid<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        //for self.items
         for y in 0..self.height {
             for x in 0..self.width {
                 match self.get(x, y) {
@@ -84,7 +102,7 @@ impl<T: Copy + Clone + Debug> Debug for Grid<T> {
                     None => write!(f, " ")?,
                 }
             }
-            writeln!(f)?;
+            writeln!(f, "\n")?;
         }
         Ok(())
     }
@@ -176,14 +194,12 @@ fn update(state: &State, grid: &Grid<Item>) -> State {
     }
 }
 
-fn simulate_until_stable(state: State, grid: &Grid<Item>) -> (u32, State) {
+fn simulate_until_stable(state: State, grid: &Grid<Item>) -> State {
     let mut state = state;
-    let mut rounds = 0;
     loop {
         let new_state = update(&state, grid);
-        rounds += 1;
         if new_state == state {
-            return (rounds, state);
+            return state;
         }
         state = new_state;
     }
@@ -207,42 +223,87 @@ fn count_energized(state: &State) -> u32 {
 
 fn part1(input: &str) -> u32 {
     let grid = grid(input).unwrap().1;
-    let mut up = Grid::fresh(grid.width, grid.height, false);
-    let mut down = Grid::fresh(grid.width, grid.height, false);
-    let mut left = Grid::fresh(grid.width, grid.height, false);
     let mut right = Grid::fresh(grid.width, grid.height, false);
-    match grid.get(0, 0) {
-        Some(Item::Empty) => {
-            right.set(0, 0, true);
-        }
-        Some(Item::ForwardMirror) => {
-            up.set(0, 0, true);
-        }
-        Some(Item::BackMirror) => down.set(0, 0, true),
-        Some(Item::VSplit) => {
-            up.set(0, 0, true);
-            down.set(0, 0, true)
-        }
-        Some(Item::HSplit) => {
-            left.set(0, 0, true);
-            right.set(0, 0, true)
-        }
-        None => panic!("outside boundary"),
-    }
+    right.set(-1, 0, true);
     let state = State {
-        left,
+        up: Grid::fresh(grid.width, grid.height, false),
+        down: Grid::fresh(grid.width, grid.height, false),
+        left: Grid::fresh(grid.width, grid.height, false),
         right,
-        up,
-        down,
     };
-    let state = simulate_until_stable(state, &grid).1;
+    let state = simulate_until_stable(state, &grid);
     count_energized(&state)
+}
+
+fn part2(input: &str) -> u32 {
+    let grid = grid(input).unwrap().1;
+    let mut starting_positions: Vec<(i32, i32)> = Default::default();
+    for x in 0..grid.width {
+        starting_positions.push((x, -1)); // down
+        starting_positions.push((x, grid.height)); // up
+    }
+    for y in 0..grid.height {
+        starting_positions.push((-1, y)); // right
+        starting_positions.push((grid.width, y)); // left
+    }
+    starting_positions
+        .iter()
+        .map(|pos| {
+            match pos {
+                (x, y) if *y == -1 => State {
+                    up: Grid::fresh(grid.width, grid.height, false),
+                    down: {
+                        let mut g = Grid::fresh(grid.width, grid.height, false);
+                        g.set(*x, *y, true);
+                        g
+                    },
+                    left: Grid::fresh(grid.width, grid.height, false),
+                    right: Grid::fresh(grid.width, grid.height, false),
+                }, // down
+                (x, y) if *y == grid.height => State {
+                    up: {
+                        let mut g = Grid::fresh(grid.width, grid.height, false);
+                        g.set(*x, *y, true);
+                        g
+                    },
+                    down: Grid::fresh(grid.width, grid.height, false),
+                    left: Grid::fresh(grid.width, grid.height, false),
+                    right: Grid::fresh(grid.width, grid.height, false),
+                }, // up
+                (x, y) if *x == -1 => State {
+                    up: Grid::fresh(grid.width, grid.height, false),
+                    down: Grid::fresh(grid.width, grid.height, false),
+                    left: Grid::fresh(grid.width, grid.height, false),
+                    right: {
+                        let mut g = Grid::fresh(grid.width, grid.height, false);
+                        g.set(*x, *y, true);
+                        g
+                    },
+                }, // right
+                (x, y) if *x == grid.width => State {
+                    up: Grid::fresh(grid.width, grid.height, false),
+                    down: Grid::fresh(grid.width, grid.height, false),
+                    left: {
+                        let mut g = Grid::fresh(grid.width, grid.height, false);
+                        g.set(*x, *y, true);
+                        g
+                    },
+                    right: Grid::fresh(grid.width, grid.height, false),
+                }, // left
+                (x, y) => panic!("Unexpected initial position. x: {}, y: {}", x, y),
+            }
+        })
+        .map(|s| simulate_until_stable(s, &grid))
+        .map(|s| count_energized(&s))
+        .max()
+        .unwrap()
 }
 
 fn main() {
     let args = Cli::parse();
     let input = std::fs::read_to_string(args.path).unwrap();
     println!("Part 1: {}", part1(&input));
+    println!("Part 2: {}", part2(&input));
 }
 
 #[cfg(test)]
@@ -262,7 +323,6 @@ mod tests {
             right,
         };
         let state = update(&state, &grid);
-        println!("{:?}", &state);
         assert_eq!(state.left.get(0, 0), Some(false));
         assert_eq!(state.right.get(0, 0), Some(true));
         assert_eq!(state.up.get(0, 0), Some(false));
@@ -276,5 +336,11 @@ mod tests {
     fn test_day16_example() {
         let input = include_str!("../../input/day16-example");
         assert_eq!(part1(input), 46);
+    }
+
+    #[test]
+    fn test_day16_part2_example() {
+        let input = include_str!("../../input/day16-example");
+        assert_eq!(part2(input), 51);
     }
 }
