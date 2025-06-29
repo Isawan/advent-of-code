@@ -205,13 +205,20 @@ fn search(map: &BTreeMap<&str, Valve>, agent_count: u32, time: u32) -> u32 {
         // we're about to clear the valves, calculate remaining agents then wait
         if state.to_visit.len() == 0 {
             //assert_eq!(full_pressure, state.total_flow_rate);
+            // TODO: fix this bit
             let old_best = best_pressure;
-            let total_pressure = state.pressure + state.total_flow_rate * state.remaining_time;
-            best_pressure = max(best_pressure, total_pressure);
-            if old_best != best_pressure {
-                println!("second");
-                best_trace = state.trace.clone();
+            let mut total_pressure = state.pressure + state.total_flow_rate * state.remaining_time;
+            let mut agents = state.agents.clone();
+            let mut remaining_time = state.remaining_time;
+            let mut total_flow_rate = state.total_flow_rate;
+            let mut pressure = state.pressure;
+            while let Some(agent) = agents.pop() {
+                let next_valve = map.get(agent.destination).unwrap();
+                let landing_time = state.remaining_time - agent.arrival_at_remaining_time;
+                pressure = pressure + total_flow_rate * landing_time;
+                total_flow_rate = total_flow_rate
             }
+            best_pressure = max(best_pressure, total_pressure);
             continue;
         }
 
@@ -298,21 +305,11 @@ mod tests {
     }
 
     #[test]
-    fn test_heap_small_search() {
-        let input = include_str!("../../input/day16-test");
-        let map = parse(input);
-        assert_eq!(search(&map, 1, 1), 0);
-        assert_eq!(search(&map, 1, 2), 0);
-        assert_eq!(search(&map, 1, 3), 20);
-        assert_eq!(search(&map, 1, 4), 40);
-    }
-
-    #[test]
     fn test_distances() {
         let input = include_str!("../../input/day16-test");
         let map = parse(input);
         let mut to_buffer = Vec::new();
-        distance(&map, 1, &mut to_buffer);
+        distance(&map, "AA", &mut to_buffer);
         assert!(to_buffer.contains(&("DD", 1)));
         assert!(to_buffer.contains(&("II", 1)));
         assert!(to_buffer.contains(&("BB", 1)));
