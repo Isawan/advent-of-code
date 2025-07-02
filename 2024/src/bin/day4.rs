@@ -60,13 +60,13 @@ fn grid(input: &str) -> IResult<&str, Grid> {
     )(input)
 }
 
-fn directions(far: i32) -> Vec<Vec<(i32, i32)>> {
+fn directions(word: &[char]) -> Vec<Vec<(i32, i32, char)>> {
     let mut result = Vec::new();
     for i in -1..=1 {
         for j in -1..=1 {
             let mut v = Vec::new();
-            for direction in 0..far {
-                v.push((direction * i, direction * j));
+            for (direction, c) in word.iter().enumerate() {
+                v.push((direction as i32 * i, direction as i32 * j, *c));
             }
             result.push(v);
         }
@@ -106,33 +106,11 @@ fn mas_directions() -> Vec<Vec<(i32, i32, char)>> {
     result
 }
 
-fn solve(grid: &Grid, word: &[char]) -> i32 {
+fn solve(grid: &Grid, pattern: &[Vec<(i32, i32, char)>]) -> i32 {
     let mut count = 0;
     for y in 0..grid.height {
         for x in 0..grid.width {
-            for path in directions(word.len().try_into().unwrap()) {
-                count += if path
-                    .iter()
-                    .zip(word)
-                    .all(|((i, j), c)| match grid.get(x + i, y + j) {
-                        Some(gc) if gc == *c => true,
-                        Some(gc) => false,
-                        None => false,
-                    }) {
-                    1
-                } else {
-                    0
-                };
-            }
-        }
-    }
-    count
-}
-fn part2(grid: &Grid, word: &[char]) -> i32 {
-    let mut count = 0;
-    for y in 0..grid.height {
-        for x in 0..grid.width {
-            for path in mas_directions() {
+            for path in pattern.into_iter() {
                 count += if path.iter().all(|(i, j, c)| match grid.get(x + i, y + j) {
                     Some(gc) if gc == *c => true,
                     Some(gc) => false,
@@ -147,15 +125,12 @@ fn part2(grid: &Grid, word: &[char]) -> i32 {
     }
     count
 }
-
 fn main() {
     let args = Cli::parse();
     let content = read_to_string(args.path).expect("could not read file");
     let (_, grid) = grid(&content).expect("parse error");
-    let part1 = solve(&grid, &['X', 'M', 'A', 'S']);
+    let part1 = solve(&grid, &directions(&['X', 'M', 'A', 'S']));
     println!("{part1:?}");
-    let part2 = part2(&grid, &['M', 'A', 'S']);
+    let part2 = solve(&grid, &mas_directions());
     println!("{part2:?}");
-    let m = mas_directions();
-    println!("{m:?}");
 }
