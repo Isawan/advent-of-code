@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs::read_to_string,
 };
 
@@ -71,7 +71,7 @@ impl Guard {
         }
     }
 
-    fn rotate(self, tile_ahead: Tile) -> Self {
+    fn rotate(self, tile_ahead: Tile) -> Option<Self> {
         let Guard {
             pos: (x, y),
             direction,
@@ -81,12 +81,12 @@ impl Guard {
             (Tile::Occupied, Direction::Right) => Direction::Down,
             (Tile::Occupied, Direction::Down) => Direction::Left,
             (Tile::Occupied, Direction::Left) => Direction::Up,
-            (Tile::Empty, dir) => dir,
+            (Tile::Empty, dir) => return None,
         };
-        Self {
+        Some(Self {
             pos: (x, y),
             direction,
-        }
+        })
     }
 
     fn march(self) -> Self {
@@ -197,7 +197,10 @@ fn solve_part1(grid: &Grid<Tile>, mut guard: Guard) -> i32 {
     let (mut x, mut y) = guard.peek();
     visited.push(guard.pos);
     while let Some(tile_ahead) = grid.get(x, y) {
-        guard = guard.rotate(tile_ahead);
+        if let Some(g) = guard.rotate(tile_ahead) {
+            guard = g;
+            continue;
+        };
         guard = guard.march();
         visited.push(guard.pos);
         (x, y) = guard.peek();
@@ -205,17 +208,57 @@ fn solve_part1(grid: &Grid<Tile>, mut guard: Guard) -> i32 {
     visited.into_iter().collect::<BTreeSet<_>>().len() as i32
 }
 
-fn has_loop(grid: &Grid<Tile>, mut guard: Guard) -> bool {
+fn print_loop(grid: &Grid<Tile>, prevs: &[Guard]) {
+    let mut h = HashMap::new();
+    for Guard { pos, direction } in prevs {
+        h.insert(pos, direction);
+    }
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            print!(
+                "{}",
+                match grid.get(x, y) {
+                    Some(Tile::Occupied) => "#",
+                    Some(Tile::Empty) => {
+                        match h.get(&(x, y)) {
+                            Some(Direction::Down) => "v",
+                            Some(Direction::Up) => "^",
+                            Some(Direction::Left) => "<",
+                            Some(Direction::Right) => ">",
+                            None => ".",
+                        }
+                    }
+                    None => {
+                        panic!("moo")
+                    }
+                }
+            );
+        }
+        print!("\n");
+    }
+}
+
+fn has_loop(
+    grid: &Grid<Tile>,
+    mut guard: Guard,
+    iterations: i32,
+    orig_x: i32,
+    orig_y: i32,
+) -> bool {
     let mut visited = HashSet::new();
     let mut prev = Vec::new();
     let (mut x, mut y) = guard.peek();
     while let Some(tile_ahead) = grid.get(x, y) {
+        if let Some(g) = guard.rotate(tile_ahead) {
+            guard = g;
+            continue;
+        };
+        guard = guard.march();
         if visited.contains(&guard) {
+            print_loop(grid, &prev);
             return true;
         }
         visited.insert(guard);
-        guard = guard.rotate(tile_ahead);
-        guard = guard.march();
         prev.push(guard);
         (x, y) = guard.peek();
     }
@@ -228,6 +271,9 @@ fn solve_part2(grid: &Grid<Tile>, guard: Guard) -> i32 {
     for y in 0..grid.height {
         for x in 0..grid.width {
             iterations += 1;
+            if iterations != 13808 {
+                continue;
+            }
             if guard.pos == (x, y) {
                 continue;
             }
@@ -236,12 +282,11 @@ fn solve_part2(grid: &Grid<Tile>, guard: Guard) -> i32 {
             }
             let mut new_grid = grid.clone();
             new_grid.set(x, y, Tile::Occupied).unwrap();
-            if has_loop(&new_grid, guard) {
+            if has_loop(&new_grid, guard, iterations, x, y) {
                 loop_count += 1;
             }
         }
     }
-    println!("{}", iterations);
     loop_count
 }
 
@@ -249,7 +294,6 @@ fn main() {
     let args = Cli::parse();
     let content = read_to_string(args.path).expect("could not read file");
     let (remain, grid) = grid(&content).unwrap();
-    println!("{grid:?}");
     let (grid, guard) = parse_guard(grid);
     let guard = guard.expect("No guard found");
     println!("{}", solve_part1(&grid, guard));
