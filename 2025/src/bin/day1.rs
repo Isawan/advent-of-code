@@ -13,21 +13,20 @@ enum Direction {
     L,
 }
 
-fn parse(line: &str) -> Option<(Direction, i32)> {
-    line.split_at_checked(1).map(|(c, i)| {
-        let direction = match c {
-            "R" => Direction::R,
-            "L" => Direction::L,
-            _ => panic!("err"),
-        };
-        (direction, i.parse().expect("not an int"))
-    })
+fn parse(line: &str) -> (Direction, i32) {
+    let (dir, count) = line.split_at(1);
+    let direction = match dir {
+        "R" => Direction::R,
+        "L" => Direction::L,
+        _ => panic!("err"),
+    };
+    (direction, count.parse().expect("not an int"))
 }
 
 fn part1(input: &str) -> usize {
     input
         .lines()
-        .map(|x| parse(x).unwrap())
+        .map(parse)
         .scan(50, |a, (d, i)| {
             *a = match d {
                 Direction::R => (*a + i).rem_euclid(100),
@@ -42,7 +41,7 @@ fn part1(input: &str) -> usize {
 fn part2(input: &str) -> usize {
     input
         .lines()
-        .map(|x| parse(x).unwrap())
+        .map(parse)
         .fold((50, 0), |(a, c), (d, i)| {
             let b = match d {
                 Direction::R => (a + i).rem_euclid(100),
@@ -66,11 +65,10 @@ fn main() {
     let input = std::fs::read_to_string(cli.path).expect("Failed to read input file");
 
     let result_part1 = part1(&input);
-    println!("Part 1 Result: {}", result_part1);
-
+    println!("Part 1 Result: {result_part1}");
 
     let result_part2 = part2(&input);
-    println!("Part 2 Result: {}", result_part2);
+    println!("Part 2 Result: {result_part2}");
 }
 
 #[cfg(test)]
@@ -79,6 +77,6 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        assert_eq!(parse("R50"), Some((Direction::R, 50)))
+        assert_eq!(parse("R50"), (Direction::R, 50))
     }
 }
