@@ -13,16 +13,7 @@ fn is_mirror(n: i64) -> bool {
     if length % 2 != 0 {
         return false;
     }
-    return s[..length / 2] == s[(length / 2)..];
-}
-
-fn part1(input: &str) -> i64 {
-    input
-        .split(',')
-        .map(|range| range.split_once('-').unwrap())
-        .flat_map(|(start, end)| start.parse::<i64>().unwrap()..=end.parse::<i64>().unwrap())
-        .filter(|x| is_mirror(*x))
-        .sum()
+    s[..length / 2] == s[(length / 2)..]
 }
 
 fn is_invalid(n: i64) -> bool {
@@ -47,12 +38,12 @@ fn is_invalid(n: i64) -> bool {
     false
 }
 
-fn part2(input: &str) -> i64 {
+fn solve(input: &str, f: impl Fn(i64) -> bool) -> i64 {
     input
         .split(',')
         .map(|range| range.split_once('-').unwrap())
         .flat_map(|(start, end)| start.parse().unwrap()..=end.parse().unwrap())
-        .filter(|x| is_invalid(*x))
+        .filter(|x| f(*x))
         .sum()
 }
 
@@ -61,10 +52,9 @@ fn main() {
 
     let input = std::fs::read_to_string(cli.path).expect("Failed to read input file");
 
-    let result_part1 = part1(&input);
-    println!("Part 1 Result: {result_part1}");
+    println!("Part 1 Result: {}", solve(&input, is_mirror));
 
-    println!("Part 2 Result: {}", part2(&input));
+    println!("Part 2 Result: {}", solve(&input, is_invalid));
 }
 
 #[cfg(test)]
