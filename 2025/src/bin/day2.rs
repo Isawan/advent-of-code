@@ -1,4 +1,6 @@
 use clap::Parser;
+use std::io::Cursor;
+use std::io::Write;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -8,27 +10,36 @@ struct Cli {
 }
 
 fn is_mirror(n: i64) -> bool {
-    let s = n.to_string();
-    let length = s.len();
+    let mut buffer = [0u8; 16];
+    let mut cursor = Cursor::new(&mut buffer[..]);
+    write!(cursor, "{}", n).unwrap();
+    let length = cursor.position() as usize;
+    // let s = n.to_string();
+    // let length = s.len();
     if length % 2 != 0 {
         return false;
     }
-    s[..length / 2] == s[(length / 2)..]
+    buffer[..length / 2] == buffer[(length / 2)..length]
 }
 
 fn is_invalid(n: i64) -> bool {
-    let s = n.to_string();
-    let s = s.as_bytes();
-    let length = s.len();
+    // let s = n.to_string();
+    // let s = s.as_bytes();
+    // let length = s.len();
+    let mut buffer = [0u8; 16];
+    let mut cursor = Cursor::new(&mut buffer[..]);
+    write!(cursor, "{}", n).unwrap();
+    let length = cursor.position() as usize;
+    println!("{:?}, {}", &buffer[0..length], length);
     'next: for j in 1..=length / 2 {
         if length % j != 0 {
             continue;
         }
         let times = length / j;
         for i in 0..j {
-            let last = s[i];
+            let last = buffer[i];
             for k in 1..times {
-                if last != s[k * j + i] {
+                if last != buffer[k * j + i] {
                     continue 'next;
                 }
             }
