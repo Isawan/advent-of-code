@@ -1,3 +1,4 @@
+use ahash::{HashMap, HashMapExt};
 use std::cmp::max;
 
 use clap::Parser;
@@ -35,6 +36,28 @@ fn max_jolt2(n: usize, input: &[u8]) -> i64 {
     return largest;
 }
 
+fn max_jolt3<'a>(n: usize, mem: &mut HashMap<(usize, &'a [u8]), i64>, input: &'a [u8]) -> i64 {
+    if n == 1 {
+        let result = input.iter().fold(0, |a, c| max(a, (c - b'0') as i64));
+        mem.insert((n, input), result);
+        return result;
+    }
+
+    let mut largest = 0;
+    for i in 0..(input.len() - n + 1) {
+        let head = (input[i] - b'0') as i64;
+        //let remain = max_jolt2(n - 1, &input[(i + 1)..]);
+        let remain = match mem.get(&((n - 1), &input[(i + 1)..])) {
+            Some(u) => *u,
+            None => max_jolt3(n - 1, mem, &input[(i + 1)..]),
+        };
+        let value = (10i64.pow((n as u32) - 1) * head) + remain;
+        largest = max(largest, value);
+    }
+    mem.insert((n, input), largest);
+    largest
+}
+
 fn part1(input: &str) -> i32 {
     input
         .lines()
@@ -45,7 +68,7 @@ fn part1(input: &str) -> i32 {
 fn part2(input: &str) -> i64 {
     input
         .lines()
-        .map(|line| max_jolt2(12, line.as_bytes()))
+        .map(|line| max_jolt3(12, &mut HashMap::new(), line.as_bytes()))
         .sum()
 }
 
@@ -70,21 +93,24 @@ mod tests {
 
     #[test]
     fn test_minimum_case() {
-        assert_eq!(max_jolt2(1, "5678".as_bytes()), 8);
-        assert_eq!(max_jolt2(1, "5".as_bytes()), 5);
+        assert_eq!(max_jolt3(1, &mut HashMap::new(), "5678".as_bytes()), 8);
+        assert_eq!(max_jolt3(1, &mut HashMap::new(), "5".as_bytes()), 5);
     }
 
     #[test]
     fn test_2_case() {
-        assert_eq!(max_jolt2(2, "00".as_bytes()), 0);
-        assert_eq!(max_jolt2(2, "10".as_bytes()), 10);
-        assert_eq!(max_jolt2(2, "123".as_bytes()), 23);
-        assert_eq!(max_jolt2(2, "231".as_bytes()), 31);
-        assert_eq!(max_jolt2(2, "2314".as_bytes()), 34);
+        assert_eq!(max_jolt3(2, &mut HashMap::new(), "00".as_bytes()), 0);
+        assert_eq!(max_jolt3(2, &mut HashMap::new(), "10".as_bytes()), 10);
+        assert_eq!(max_jolt3(2, &mut HashMap::new(), "123".as_bytes()), 23);
+        assert_eq!(max_jolt3(2, &mut HashMap::new(), "231".as_bytes()), 31);
+        assert_eq!(max_jolt3(2, &mut HashMap::new(), "2314".as_bytes()), 34);
     }
 
     #[test]
     fn test_general_case() {
-        assert_eq!(max_jolt2(12, "987654321111111".as_bytes()), 987654321111);
+        assert_eq!(
+            max_jolt3(12, &mut HashMap::new(), "987654321111111".as_bytes()),
+            987654321111
+        );
     }
 }
