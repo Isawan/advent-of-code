@@ -51,7 +51,7 @@ fn part2(input: &str) -> usize {
                 Direction::R => (a + i).div_euclid(100),
                 Direction::L if a - i > 0 => 0,
                 Direction::L if a - i == 0 => 1,
-                Direction::L if a == 0 => ((a - i) / (-100)),
+                Direction::L if a == 0 => (a - i) / (-100),
                 Direction::L => ((a - i) / (-100)) + 1,
             };
             (b, c + q)
