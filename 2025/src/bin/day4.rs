@@ -2,7 +2,7 @@ use advent_of_code::grid::Grid;
 use ahash::{HashMap, HashMapExt};
 use itertools::Itertools;
 use rayon::iter::Empty;
-use std::cmp::max;
+use std::{cmp::max, thread::AccessError};
 
 use clap::Parser;
 
@@ -64,11 +64,51 @@ fn part1(input: &str) -> i32 {
     accessible_count
 }
 
+fn part2(input: &str) -> usize {
+    let mut grid = parse(input);
+    let mut accessible = Vec::new();
+    let mut removed = 0;
+    loop {
+        accessible.clear();
+        for (x, y, tile) in grid.all() {
+            if tile == Tile::Empty {
+                continue;
+            }
+            let mut count = 0;
+            for (i, j) in (-1..=1).cartesian_product(-1..=1) {
+                if i == 0 && j == 0 {
+                    continue;
+                }
+                count += if grid.get(x + i, y + j).unwrap_or(Tile::Empty) == Tile::Roll {
+                    1
+                } else {
+                    0
+                }
+            }
+            if count < 4 {
+                removed += 1;
+                accessible.push((x, y));
+            }
+        }
+        for (x, y) in accessible.iter() {
+            grid.set(*x, *y, Tile::Empty);
+        }
+        if accessible.is_empty() {
+            break;
+        }
+    }
+    //grid.all()
+    //    .into_iter()
+    //    .filter(|(_, _, tile)| *tile == Tile::Roll)
+    //    .count()
+    removed
+}
+
 fn main() {
     let cli = Cli::parse();
     let input = std::fs::read_to_string(cli.path).expect("Failed to read input file");
     println!("Part 1: {}", part1(&input));
-    // println!("Part 2: {}", solve(12, &input));
+    println!("Part 2: {}", part2(&input));
 }
 
 #[cfg(test)]
