@@ -20,7 +20,6 @@ fn max_jolt<'a>(n: usize, mem: &mut HashMap<(usize, &'a [u8]), i64>, input: &'a 
     let mut largest = 0;
     for i in 0..(input.len() - n + 1) {
         let head = (input[i] - b'0') as i64;
-        //let remain = max_jolt2(n - 1, &input[(i + 1)..]);
         let remain = match mem.get(&((n - 1), &input[(i + 1)..])) {
             Some(u) => *u,
             None => max_jolt(n - 1, mem, &input[(i + 1)..]),
