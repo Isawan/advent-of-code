@@ -48,7 +48,6 @@ fn part2(ingredients: &Vec<(i64, i64)>) -> i64 {
     ingredients
         .iter()
         .fold((0, None), |(counter, max), &x| {
-            println!("{:?} {:?} {:?}", counter, max, x);
             let (c, n) = gobble(x, max);
             (counter + c, n)
         })
