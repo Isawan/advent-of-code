@@ -42,8 +42,7 @@ fn part2(ingredients: &Vec<(i64, i64)>) -> i64 {
                 None => (high - low + 1, Some(high)),
                 Some(m) if high <= m => (0, Some(m)),
                 Some(m) if high > m && low <= m => (high - m, Some(high)),
-                Some(m) if high > m && low > m => (high - low + 1, Some(high)),
-                _ => panic!("impossible"),
+                Some(_) => (high - low + 1, Some(high)),
             };
             (counter + c, n)
         })
