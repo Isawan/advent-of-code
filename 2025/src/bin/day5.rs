@@ -32,23 +32,19 @@ fn part1((ranges, ingredients): &(Vec<(i64, i64)>, Vec<i64>)) -> usize {
         .count()
 }
 
-fn gobble((low, high): (i64, i64), max: Option<i64>) -> (i64, Option<i64>) {
-    match max {
-        None => (high - low + 1, Some(high)),
-        Some(m) if high <= m => (0, Some(m)),
-        Some(m) if high > m && low <= m => (high - m, Some(high)),
-        Some(m) if high > m && low > m => (high - low + 1, Some(high)),
-        _ => panic!("impossible"),
-    }
-}
-
 fn part2(ingredients: &Vec<(i64, i64)>) -> i64 {
     let mut ingredients = ingredients.clone();
     ingredients.sort();
     ingredients
         .iter()
-        .fold((0, None), |(counter, max), &x| {
-            let (c, n) = gobble(x, max);
+        .fold((0, None), |(counter, max), &(low, high)| {
+            let (c, n) = match max {
+                None => (high - low + 1, Some(high)),
+                Some(m) if high <= m => (0, Some(m)),
+                Some(m) if high > m && low <= m => (high - m, Some(high)),
+                Some(m) if high > m && low > m => (high - low + 1, Some(high)),
+                _ => panic!("impossible"),
+            };
             (counter + c, n)
         })
         .0
