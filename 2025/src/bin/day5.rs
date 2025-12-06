@@ -37,14 +37,11 @@ fn part2(ingredients: &Vec<(i64, i64)>) -> i64 {
     ingredients.sort();
     ingredients
         .iter()
-        .fold((0, None), |(counter, max), &(low, high)| {
-            let (c, n) = match max {
-                None => (high - low + 1, Some(high)),
-                Some(m) if high <= m => (0, Some(m)),
-                Some(m) if high > m && low <= m => (high - m, Some(high)),
-                Some(_) => (high - low + 1, Some(high)),
-            };
-            (counter + c, n)
+        .fold((0, None), |(counter, max), &(low, high)| match max {
+            None => (counter + high - low + 1, Some(high)),
+            Some(m) if high <= m => (counter, Some(m)),
+            Some(m) if high > m && low <= m => (counter + high - m, Some(high)),
+            Some(_) => (counter + high - low + 1, Some(high)),
         })
         .0
 }
