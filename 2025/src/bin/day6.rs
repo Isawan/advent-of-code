@@ -1,4 +1,6 @@
+use anyhow::Error;
 use core::num;
+use std::f32::consts::E;
 
 use clap::Parser;
 
@@ -29,6 +31,18 @@ impl Operation {
     }
 }
 
+impl TryFrom<char> for Operation {
+    type Error = anyhow::Error;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            '+' => Ok(Operation::Plus),
+            '*' => Ok(Operation::Multiply),
+            _ => Err(Error::msg("Invalid operation")),
+        }
+    }
+}
+
 fn parse(input: &str) -> (Vec<Vec<i64>>, Vec<Operation>) {
     let mut lines = input.lines().peekable();
     let mut operations = Vec::new();
@@ -54,7 +68,8 @@ fn parse(input: &str) -> (Vec<Vec<i64>>, Vec<Operation>) {
     (numbers, operations)
 }
 
-fn part1((numbers, operations): (Vec<Vec<i64>>, Vec<Operation>)) -> i64 {
+fn part1(input: &str) -> i64 {
+    let (numbers, operations) = parse(&input);
     let mut total = 0;
     for i in 0..numbers[0].len() {
         let op = operations[i];
@@ -62,15 +77,48 @@ fn part1((numbers, operations): (Vec<Vec<i64>>, Vec<Operation>)) -> i64 {
         for j in 0..numbers.len() {
             val = op.apply(val, numbers[j][i]);
         }
-        println!("{val}");
         total += val;
     }
+    total
+}
+
+fn part2(input: &str) -> i64 {
+    let height = input.lines().count();
+    let width = input.lines().next().unwrap().len();
+    let cells: Vec<Vec<char>> = input.lines().map(|line| line.chars().collect()).collect();
+    let mut op: Operation = cells[height - 1][0].try_into().unwrap();
+    let mut total = 0;
+    let mut op_value = op.init();
+    for i in 0..width {
+        //op = cells[height - 1][i].try_into().unwrap_or(op);
+        let m: Result<Operation, Error> = cells[height - 1][i].try_into();
+        op = match m {
+            Ok(x) => {
+                op_value = x.init();
+                x
+            }
+            Err(_) => op,
+        };
+        let mut holding = None;
+        for j in 0..height - 1 {
+            let c = cells[j][i];
+            holding = match c.to_digit(10).map(|x| x as i64) {
+                Some(d) => Some(holding.unwrap_or(0) * 10 + d),
+                None => holding,
+            }
+        }
+        match holding {
+            Some(h) => op_value = op.apply(op_value, h),
+            None => total += op_value,
+        }
+    }
+    total += op_value;
     total
 }
 
 fn main() {
     let cli = Cli::parse();
     let input = std::fs::read_to_string(cli.path).expect("Failed to read input file");
-    let input = parse(&input);
-    println!("Part 1: {}", part1(input));
+    println!("Part 1: {}", part1(&input));
+    println!("Part 2: {}", part2(&input));
 }
